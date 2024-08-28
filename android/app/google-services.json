@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "586639228845",
+    "project_id": "gpt-motivationapp",
+    "storage_bucket": "gpt-motivationapp.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:586639228845:android:c8d0de158e84a3f0c3eb24",
+        "android_client_info": {
+          "package_name": "com.yuto.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA_2ywCQJe3BGEDYekTAj6uZpsL1ppRc3Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
