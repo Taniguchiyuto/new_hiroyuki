@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PageTwo extends StatefulWidget {
   @override
@@ -6,202 +8,121 @@ class PageTwo extends StatefulWidget {
 }
 
 class _PageTwoState extends State<PageTwo> {
-  Map<String, List<Map<String, dynamic>>> categories = {
-    "英語": [
-      {"title": "英語", "icon": Icons.book},
-    ],
-    "古文": [
-      {"title": "古文", "icon": Icons.book},
-      {"title": "【基礎S】トップ古文論述", "icon": Icons.book},
-      {"title": "うた恋い。超訳百人一首", "icon": Icons.book},
-    ],
-    "数学": [
-      {"title": "数学の教材1", "icon": Icons.book},
-      {"title": "数学の教材2", "icon": Icons.book},
-      {"title": "数学の教材3", "icon": Icons.book},
-    ],
-  };
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  void _addBook(String category, String title, IconData icon) {
-    setState(() {
-      categories[category]?.add({"title": title, "icon": icon});
+  String uid = '未取得';
+  final TextEditingController _titleController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _getCurrentUserUID();
+  }
+
+  // ログインしているユーザーのUIDを取得する関数
+  Future<void> _getCurrentUserUID() async {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      setState(() {
+        uid = user.uid;
+      });
+    } else {
+      setState(() {
+        uid = 'ログインしていません';
+      });
+    }
+  }
+
+  // Firestoreに教材データを保存する関数
+  Future<void> _addStudyMaterial(String title) async {
+    await _firestore
+        .collection('study_materials')
+        .doc(uid) // UIDをドキュメントIDとして使用
+        .collection('materials') // サブコレクション
+        .add({
+      'title': title,
+      'createdAt': FieldValue.serverTimestamp(),
     });
   }
 
-  void _showAddBookDialog() {
-    String category = '英語';
-    String title = '';
-    IconData selectedIcon = Icons.book;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("新しい教材を追加"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButton<String>(
-                value: category,
-                items: categories.keys.map((String category) {
-                  return DropdownMenuItem<String>(
-                    value: category,
-                    child: Text(category),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    category = value!;
-                  });
-                },
-              ),
-              TextField(
-                decoration: InputDecoration(labelText: "タイトル"),
-                onChanged: (value) {
-                  title = value;
-                },
-              ),
-              DropdownButton<IconData>(
-                value: selectedIcon,
-                items: [
-                  DropdownMenuItem(
-                    child: Text("書籍"),
-                    value: Icons.book,
-                  ),
-                  DropdownMenuItem(
-                    child: Text("編集"),
-                    value: Icons.edit,
-                  ),
-                  DropdownMenuItem(
-                    child: Text("テスト"),
-                    value: Icons.assignment,
-                  ),
-                  DropdownMenuItem(
-                    child: Text("顔"),
-                    value: Icons.face,
-                  ),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    selectedIcon = value!;
-                  });
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: Text("キャンセル"),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: Text("追加"),
-              onPressed: () {
-                if (title.isNotEmpty) {
-                  _addBook(category, title, selectedIcon);
-                  Navigator.of(context).pop();
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showOptionsDialog() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: Text("新しい教材を追加"),
-              onTap: () {
-                Navigator.of(context).pop();
-                _showAddBookDialog();
-              },
-            ),
-            ListTile(
-              title: Text("本棚を整理"),
-              onTap: () {
-                // 本棚を整理する処理を追加
-                Navigator.of(context).pop();
-              },
-            ),
-            ListTile(
-              title: Text("キャンセル"),
-              onTap: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
+  // 教材を追加する処理
+  Future<void> _addMaterial() async {
+    if (_titleController.text.isNotEmpty) {
+      await _addStudyMaterial(_titleController.text);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('教材が正常に追加されました')),
+      );
+      setState(() {
+        _titleController.clear();
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('タイトルを入力してください')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("勉強中の本棚"),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.edit),
-            onPressed: _showOptionsDialog,
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
+      appBar: AppBar(title: Text('教材の管理')),
+      body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: categories.keys.map((category) {
-            return _buildCategorySection(category, categories[category]!);
-          }).toList(),
+          children: [
+            // 教材タイトルの入力フィールド
+            TextField(
+              controller: _titleController,
+              decoration: InputDecoration(labelText: '教材のタイトル'),
+            ),
+            SizedBox(height: 20),
+            // 教材追加ボタン
+            ElevatedButton(
+              onPressed: _addMaterial,
+              child: Text('教材を追加'),
+            ),
+            SizedBox(height: 20),
+            Expanded(
+              child: StreamBuilder(
+                stream: _firestore
+                    .collection('study_materials')
+                    .doc(uid)
+                    .collection('materials')
+                    .orderBy('createdAt', descending: true)
+                    .snapshots(),
+                builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(child: Text('エラーが発生しました: ${snapshot.error}'));
+                  }
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Center(child: CircularProgressIndicator());
+                  }
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return Center(child: Text('表示する教材がありません'));
+                  }
+
+                  final materials = snapshot.data!.docs;
+                  return ListView.builder(
+                    itemCount: materials.length,
+                    itemBuilder: (context, index) {
+                      return ListTile(
+                        title: Text(materials[index]['title']),
+                      );
+                    },
+                  );
+                },
+              ),
+            )
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildCategorySection(
-      String categoryTitle, List<Map<String, dynamic>> bookList) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: Text(
-            categoryTitle,
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-        ),
-        GridView.count(
-          crossAxisCount: 3,
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          children: bookList.map((book) {
-            return Card(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(book["icon"], size: 40),
-                  SizedBox(height: 8),
-                  Text(
-                    book["title"],
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
+  @override
+  void dispose() {
+    _titleController.dispose();
+    super.dispose();
   }
 }
