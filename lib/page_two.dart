@@ -12,7 +12,9 @@ class _PageTwoState extends State<PageTwo> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   String uid = '未取得';
+  String? selectedSubjectId;
   final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _subjectController = TextEditingController();
 
   @override
   void initState() {
@@ -34,21 +36,170 @@ class _PageTwoState extends State<PageTwo> {
     }
   }
 
-  // Firestoreに教材データを保存する関数
-  Future<void> _addStudyMaterial(String title) async {
-    await _firestore
-        .collection('study_materials')
-        .doc(uid) // UIDをドキュメントIDとして使用
-        .collection('materials') // サブコレクション
-        .add({
-      'title': title,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+  // 編集ボタンが押されたときに表示するメニュー
+  void _showEditMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: Icon(Icons.add),
+                title: Text('新しい教材を追加'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showAddMaterialDialog(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.library_add),
+                title: Text('新しい科目を追加'), // 新しい科目を追加するボタン
+                onTap: () {
+                  Navigator.pop(context);
+                  _showAddSubjectDialog(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.edit),
+                title: Text('本棚を整理'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _organizeShelf();
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.cancel),
+                title: Text('キャンセル'),
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // 新しい科目を追加するダイアログを表示する関数
+  void _showAddSubjectDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('新しい科目を追加'),
+          content: TextField(
+            controller: _subjectController,
+            decoration: InputDecoration(labelText: '科目名'),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('キャンセル'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('追加'),
+              onPressed: () {
+                _addNewSubject();
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 教材追加のダイアログを表示する関数
+  void _showAddMaterialDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('新しい教材を追加'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              TextField(
+                controller: _titleController,
+                decoration: InputDecoration(labelText: '教材のタイトル'),
+              ),
+              StreamBuilder<QuerySnapshot>(
+                stream: _firestore
+                    .collection('subjects')
+                    .where('uid', isEqualTo: uid)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return CircularProgressIndicator();
+                  final subjects = snapshot.data!.docs;
+                  return DropdownButton<String>(
+                    hint: Text('科目を選択'),
+                    value: selectedSubjectId,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedSubjectId = value;
+                      });
+                    },
+                    items: subjects.map((subject) {
+                      return DropdownMenuItem<String>(
+                        value: subject.id,
+                        child: Text(subject['name']),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('キャンセル'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('追加'),
+              onPressed: () {
+                _addMaterial();
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 本棚を整理する処理
+  void _organizeShelf() {
+    // 本棚整理の処理をここに実装
+  }
+
+  // 科目を追加する処理
+  Future<void> _addNewSubject() async {
+    if (_subjectController.text.isNotEmpty) {
+      await _addSubject(_subjectController.text);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('科目が正常に追加されました')),
+      );
+      setState(() {
+        _subjectController.clear();
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('科目名を入力してください')),
+      );
+    }
   }
 
   // 教材を追加する処理
   Future<void> _addMaterial() async {
-    if (_titleController.text.isNotEmpty) {
+    if (_titleController.text.isNotEmpty && selectedSubjectId != null) {
       await _addStudyMaterial(_titleController.text);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('教材が正常に追加されました')),
@@ -58,62 +209,144 @@ class _PageTwoState extends State<PageTwo> {
       });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('タイトルを入力してください')),
+        SnackBar(content: Text('科目と教材のタイトルを入力してください')),
       );
     }
+  }
+
+  // Firestoreに科目データを保存する関数
+  Future<void> _addSubject(String name) async {
+    await _firestore.collection('subjects').add({
+      'name': name,
+      'uid': uid,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Firestoreに教材データを保存する関数
+  Future<void> _addStudyMaterial(String title) async {
+    if (selectedSubjectId != null) {
+      await _firestore
+          .collection('subjects')
+          .doc(selectedSubjectId)
+          .collection('materials')
+          .add({
+        'title': title,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  // 科目ごとの教材を表示するウィジェット
+  Widget _buildSubjectSections() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore
+          .collection('subjects')
+          .where('uid', isEqualTo: uid)
+          .snapshots(),
+      builder: (context, subjectSnapshot) {
+        if (subjectSnapshot.hasError) {
+          return Center(child: Text('エラーが発生しました: ${subjectSnapshot.error}'));
+        }
+        if (subjectSnapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
+        if (!subjectSnapshot.hasData || subjectSnapshot.data!.docs.isEmpty) {
+          return Center(child: Text('表示する科目がありません'));
+        }
+
+        final subjects = subjectSnapshot.data!.docs;
+
+        return ListView.builder(
+          itemCount: subjects.length,
+          itemBuilder: (context, index) {
+            final subject = subjects[index];
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ListTile(
+                  title: Text(subject['name']),
+                  leading: Icon(Icons.book),
+                ),
+                SizedBox(
+                  height: 200,
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: _firestore
+                        .collection('subjects')
+                        .doc(subject.id)
+                        .collection('materials')
+                        .orderBy('createdAt', descending: true)
+                        .snapshots(),
+                    builder: (context, materialSnapshot) {
+                      if (materialSnapshot.hasError) {
+                        return Center(
+                            child:
+                                Text('エラーが発生しました: ${materialSnapshot.error}'));
+                      }
+                      if (materialSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return Center(child: CircularProgressIndicator());
+                      }
+                      if (!materialSnapshot.hasData ||
+                          materialSnapshot.data!.docs.isEmpty) {
+                        return Center(child: Text('この科目に表示する教材がありません'));
+                      }
+
+                      final materials = materialSnapshot.data!.docs;
+
+                      return GridView.builder(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                        ),
+                        itemCount: materials.length,
+                        itemBuilder: (context, materialIndex) {
+                          final material = materials[materialIndex];
+                          return Card(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.insert_drive_file, size: 40),
+                                SizedBox(height: 10),
+                                Text(material['title']),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+                Divider(),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('教材の管理')),
+      appBar: AppBar(
+        title: Text('教材の管理'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.edit),
+            onPressed: () {
+              _showEditMenu(context);
+            },
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // 教材タイトルの入力フィールド
-            TextField(
-              controller: _titleController,
-              decoration: InputDecoration(labelText: '教材のタイトル'),
-            ),
-            SizedBox(height: 20),
-            // 教材追加ボタン
-            ElevatedButton(
-              onPressed: _addMaterial,
-              child: Text('教材を追加'),
-            ),
-            SizedBox(height: 20),
             Expanded(
-              child: StreamBuilder(
-                stream: _firestore
-                    .collection('study_materials')
-                    .doc(uid)
-                    .collection('materials')
-                    .orderBy('createdAt', descending: true)
-                    .snapshots(),
-                builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(child: Text('エラーが発生しました: ${snapshot.error}'));
-                  }
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(child: CircularProgressIndicator());
-                  }
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return Center(child: Text('表示する教材がありません'));
-                  }
-
-                  final materials = snapshot.data!.docs;
-                  return ListView.builder(
-                    itemCount: materials.length,
-                    itemBuilder: (context, index) {
-                      return ListTile(
-                        title: Text(materials[index]['title']),
-                      );
-                    },
-                  );
-                },
-              ),
-            )
+              child: _buildSubjectSections(),
+            ),
           ],
         ),
       ),
@@ -122,6 +355,7 @@ class _PageTwoState extends State<PageTwo> {
 
   @override
   void dispose() {
+    _subjectController.dispose();
     _titleController.dispose();
     super.dispose();
   }
