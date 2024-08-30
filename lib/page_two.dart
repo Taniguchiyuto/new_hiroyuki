@@ -42,7 +42,7 @@ class _PageTwoState extends State<PageTwo> {
   // 本棚整理モードを切り替える関数
   void _organizeShelf() {
     setState(() {
-      _isOrganizing = true;
+      _isOrganizing = !_isOrganizing;
     });
   }
 
@@ -85,6 +85,7 @@ class _PageTwoState extends State<PageTwo> {
                 onTap: () {
                   Navigator.pop(context);
                   _organizeShelf();
+                  _showCancelSnackbar(); // キャンセルボタンを表示するためにスナックバーを表示
                 },
               ),
               ListTile(
@@ -98,6 +99,29 @@ class _PageTwoState extends State<PageTwo> {
           ),
         );
       },
+    );
+  }
+
+  // キャンセルボタンを表示するためのスナックバー
+  void _showCancelSnackbar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('整理モード中'),
+            TextButton(
+              child: Text('キャンセル', style: TextStyle(color: Colors.white)),
+              onPressed: () {
+                _organizeShelf(); // 整理モードをキャンセルする
+                ScaffoldMessenger.of(context)
+                    .hideCurrentSnackBar(); // スナックバーを非表示にする
+              },
+            ),
+          ],
+        ),
+        duration: Duration(days: 1), // ユーザーがキャンセルを押すまでスナックバーを表示
+      ),
     );
   }
 
@@ -327,9 +351,39 @@ class _PageTwoState extends State<PageTwo> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ListTile(
-                  title: Text(subject['name']),
-                  leading: Icon(Icons.book),
+                DragTarget<Map<String, dynamic>>(
+                  onAccept: (data) async {
+                    await _firestore
+                        .collection('subjects')
+                        .doc(data['subjectId'])
+                        .collection('materials')
+                        .doc(data['materialId'])
+                        .delete();
+
+                    await _firestore
+                        .collection('subjects')
+                        .doc(subject.id)
+                        .collection('materials')
+                        .add({
+                      'title': data['title'],
+                      'createdAt': FieldValue.serverTimestamp(),
+                    });
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('教材が移動されました')),
+                    );
+                  },
+                  builder: (context, candidateData, rejectedData) {
+                    return Container(
+                      color: candidateData.isNotEmpty
+                          ? Colors.grey[200]
+                          : null, // ドラッグ中の視覚的フィードバックを追加
+                      child: ListTile(
+                        title: Text(subject['name']),
+                        leading: Icon(Icons.book),
+                      ),
+                    );
+                  },
                 ),
                 SizedBox(
                   height: 200,
@@ -367,7 +421,7 @@ class _PageTwoState extends State<PageTwo> {
 
                           // 本棚整理モードによる分岐
                           return _isOrganizing
-                              ? Draggable<Map<String, dynamic>>(
+                              ? LongPressDraggable<Map<String, dynamic>>(
                                   data: {
                                     'materialId': material.id,
                                     'subjectId': subject.id,
@@ -419,22 +473,32 @@ class _PageTwoState extends State<PageTwo> {
                                       );
                                     },
                                     onAccept: (data) async {
-                                      await _firestore
-                                          .collection('subjects')
-                                          .doc(data['subjectId'])
-                                          .collection('materials')
-                                          .doc(data['materialId'])
-                                          .delete();
+                                      if (data['subjectId'] == subject.id) {
+                                        // 同じ科目内での順序変更
+                                        await _reorderMaterial(
+                                          subject.id,
+                                          data['materialId'],
+                                          material.id,
+                                        );
+                                      } else {
+                                        // 別の科目へ移動
+                                        await _firestore
+                                            .collection('subjects')
+                                            .doc(data['subjectId'])
+                                            .collection('materials')
+                                            .doc(data['materialId'])
+                                            .delete();
 
-                                      await _firestore
-                                          .collection('subjects')
-                                          .doc(subject.id)
-                                          .collection('materials')
-                                          .add({
-                                        'title': data['title'],
-                                        'createdAt':
-                                            FieldValue.serverTimestamp(),
-                                      });
+                                        await _firestore
+                                            .collection('subjects')
+                                            .doc(subject.id)
+                                            .collection('materials')
+                                            .add({
+                                          'title': data['title'],
+                                          'createdAt':
+                                              FieldValue.serverTimestamp(),
+                                        });
+                                      }
 
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(SnackBar(
@@ -466,6 +530,31 @@ class _PageTwoState extends State<PageTwo> {
     );
   }
 
+  // Firestoreの教材順序を入れ替える関数
+  Future<void> _reorderMaterial(
+      String subjectId, String oldMaterialId, String newMaterialId) async {
+    final batch = _firestore.batch();
+    final oldMaterialRef = _firestore
+        .collection('subjects')
+        .doc(subjectId)
+        .collection('materials')
+        .doc(oldMaterialId);
+    final newMaterialRef = _firestore
+        .collection('subjects')
+        .doc(subjectId)
+        .collection('materials')
+        .doc(newMaterialId);
+
+    final oldMaterialData = await oldMaterialRef.get();
+    final newMaterialData = await newMaterialRef.get();
+
+    if (oldMaterialData.exists && newMaterialData.exists) {
+      batch.update(oldMaterialRef, {'createdAt': newMaterialData['createdAt']});
+      batch.update(newMaterialRef, {'createdAt': oldMaterialData['createdAt']});
+      await batch.commit();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -473,9 +562,9 @@ class _PageTwoState extends State<PageTwo> {
         title: Text('教材の管理'),
         actions: [
           IconButton(
-            icon: Icon(Icons.more_vert), // ここでは3点アイコンを使用していますが、編集アイコンも可
+            icon: Icon(Icons.more_vert), // 右上のボタン
             onPressed: () {
-              _showEditMenu(context); // 右上の編集ボタンが押されたときに _showEditMenu を呼び出します
+              _showEditMenu(context); // ボタンが押されたときに編集メニューを表示する
             },
           ),
         ],
