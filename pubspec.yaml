@@ -16,6 +16,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   image_picker: ^1.1.2
   firebase_storage: ^12.2.0
+
+  http: ^0.13.4
 dev_dependencies:
   flutter_test:
     sdk: flutter

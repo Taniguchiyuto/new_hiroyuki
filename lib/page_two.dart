@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class PageTwo extends StatefulWidget {
   @override
@@ -54,6 +56,14 @@ class _PageTwoState extends State<PageTwo> {
                 },
               ),
               ListTile(
+                leading: Icon(Icons.search_rounded),
+                title: Text('本を検索'),
+                onTap: () {
+                  Navigator.pop(context);
+                  showSearchModal(context);
+                },
+              ),
+              ListTile(
                 leading: Icon(Icons.library_add),
                 title: Text('新しい科目を追加'), // 新しい科目を追加するボタン
                 onTap: () {
@@ -78,6 +88,19 @@ class _PageTwoState extends State<PageTwo> {
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  // 本を検索するためのモーダルを表示する関数
+  void showSearchModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          height: 500,
+          child: BookSearchWidget(),
         );
       },
     );
@@ -357,6 +380,93 @@ class _PageTwoState extends State<PageTwo> {
   void dispose() {
     _subjectController.dispose();
     _titleController.dispose();
+    super.dispose();
+  }
+}
+
+// 新しい検索ウィジェットを追加します
+class BookSearchWidget extends StatefulWidget {
+  @override
+  _BookSearchWidgetState createState() => _BookSearchWidgetState();
+}
+
+class _BookSearchWidgetState extends State<BookSearchWidget> {
+  final TextEditingController _searchController = TextEditingController();
+  List<dynamic> _books = [];
+  bool _loading = false;
+
+  Future<void> _searchBooks() async {
+    setState(() {
+      _loading = true;
+    });
+
+    final apiKey =
+        'AIzaSyAuaDS5E3JDnzicXr4tM3SgBAy8qUpy-4s'; // ここにGoogle Books APIキーを入力
+    final query = _searchController.text;
+    final response = await http.get(
+      Uri.parse(
+          'https://www.googleapis.com/books/v1/volumes?q=$query&key=$apiKey'),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      setState(() {
+        _books = data['items'] ?? [];
+        _loading = false;
+      });
+    } else {
+      setState(() {
+        _loading = false;
+      });
+      throw Exception('Failed to load books');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Search Books'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Search for books',
+                suffixIcon: IconButton(
+                  icon: Icon(Icons.search),
+                  onPressed: _searchBooks,
+                ),
+              ),
+            ),
+            SizedBox(height: 16),
+            _loading
+                ? CircularProgressIndicator()
+                : Expanded(
+                    child: ListView.builder(
+                      itemCount: _books.length,
+                      itemBuilder: (context, index) {
+                        final book = _books[index]['volumeInfo'];
+                        return ListTile(
+                          title: Text(book['title']),
+                          subtitle:
+                              Text(book['authors']?.join(', ') ?? 'No authors'),
+                        );
+                      },
+                    ),
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
     super.dispose();
   }
 }
