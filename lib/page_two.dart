@@ -60,12 +60,12 @@ class _PageTwoState extends State<PageTwo> {
                 title: Text('本を検索'),
                 onTap: () {
                   Navigator.pop(context);
-                  showSearchModal(context);
+                  _showSearchAndAddMaterialDialog(context);
                 },
               ),
               ListTile(
                 leading: Icon(Icons.library_add),
-                title: Text('新しい科目を追加'), // 新しい科目を追加するボタン
+                title: Text('新しい科目を追加'),
                 onTap: () {
                   Navigator.pop(context);
                   _showAddSubjectDialog(context);
@@ -93,14 +93,50 @@ class _PageTwoState extends State<PageTwo> {
     );
   }
 
-  // 本を検索するためのモーダルを表示する関数
-  void showSearchModal(BuildContext context) {
+  // 本を検索して追加するためのモーダルを表示する関数
+  void _showSearchAndAddMaterialDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
-        return Container(
-          height: 500,
-          child: BookSearchWidget(),
+        return StreamBuilder<QuerySnapshot>(
+          stream: _firestore
+              .collection('subjects')
+              .where('uid', isEqualTo: uid)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) return CircularProgressIndicator();
+            final subjects = snapshot.data!.docs;
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                DropdownButton<String>(
+                  hint: Text('科目を選択'),
+                  value: selectedSubjectId,
+                  onChanged: (value) {
+                    setState(() {
+                      selectedSubjectId = value;
+                    });
+                  },
+                  items: subjects.map((subject) {
+                    return DropdownMenuItem<String>(
+                      value: subject.id,
+                      child: Text(subject['name']),
+                    );
+                  }).toList(),
+                ),
+                Expanded(
+                  child: BookSearchWidget(
+                    subjectId: selectedSubjectId ?? '',
+                    onBookSelected: (bookTitle) {
+                      if (selectedSubjectId != null) {
+                        _addStudyMaterial(bookTitle);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -386,6 +422,11 @@ class _PageTwoState extends State<PageTwo> {
 
 // 新しい検索ウィジェットを追加します
 class BookSearchWidget extends StatefulWidget {
+  final String subjectId;
+  final Function(String) onBookSelected;
+
+  BookSearchWidget({required this.subjectId, required this.onBookSelected});
+
   @override
   _BookSearchWidgetState createState() => _BookSearchWidgetState();
 }
@@ -454,6 +495,10 @@ class _BookSearchWidgetState extends State<BookSearchWidget> {
                           title: Text(book['title']),
                           subtitle:
                               Text(book['authors']?.join(', ') ?? 'No authors'),
+                          onTap: () {
+                            widget.onBookSelected(book['title']);
+                            Navigator.pop(context);
+                          },
                         );
                       },
                     ),
