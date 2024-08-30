@@ -15,6 +15,7 @@ class _PageTwoState extends State<PageTwo> {
 
   String uid = '未取得';
   String? selectedSubjectId;
+  bool _isOrganizing = false; // 本棚整理モードのフラグを追加
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _subjectController = TextEditingController();
 
@@ -36,6 +37,13 @@ class _PageTwoState extends State<PageTwo> {
         uid = 'ログインしていません';
       });
     }
+  }
+
+  // 本棚整理モードを切り替える関数
+  void _organizeShelf() {
+    setState(() {
+      _isOrganizing = true;
+    });
   }
 
   // 編集ボタンが押されたときに表示するメニュー
@@ -234,11 +242,6 @@ class _PageTwoState extends State<PageTwo> {
     );
   }
 
-  // 本棚を整理する処理
-  void _organizeShelf() {
-    // 本棚整理の処理をここに実装
-  }
-
   // 科目を追加する処理
   Future<void> _addNewSubject() async {
     if (_subjectController.text.isNotEmpty) {
@@ -361,16 +364,94 @@ class _PageTwoState extends State<PageTwo> {
                         itemCount: materials.length,
                         itemBuilder: (context, materialIndex) {
                           final material = materials[materialIndex];
-                          return Card(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.insert_drive_file, size: 40),
-                                SizedBox(height: 10),
-                                Text(material['title']),
-                              ],
-                            ),
-                          );
+
+                          // 本棚整理モードによる分岐
+                          return _isOrganizing
+                              ? Draggable<Map<String, dynamic>>(
+                                  data: {
+                                    'materialId': material.id,
+                                    'subjectId': subject.id,
+                                    'title': material['title'],
+                                  },
+                                  feedback: Material(
+                                    child: Card(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.insert_drive_file,
+                                              size: 40),
+                                          SizedBox(height: 10),
+                                          Text(material['title']),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  childWhenDragging: Opacity(
+                                    opacity: 0.5,
+                                    child: Card(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.insert_drive_file,
+                                              size: 40),
+                                          SizedBox(height: 10),
+                                          Text(material['title']),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  child: DragTarget<Map<String, dynamic>>(
+                                    builder:
+                                        (context, candidateData, rejectedData) {
+                                      return Card(
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.insert_drive_file,
+                                                size: 40),
+                                            SizedBox(height: 10),
+                                            Text(material['title']),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                    onAccept: (data) async {
+                                      await _firestore
+                                          .collection('subjects')
+                                          .doc(data['subjectId'])
+                                          .collection('materials')
+                                          .doc(data['materialId'])
+                                          .delete();
+
+                                      await _firestore
+                                          .collection('subjects')
+                                          .doc(subject.id)
+                                          .collection('materials')
+                                          .add({
+                                        'title': data['title'],
+                                        'createdAt':
+                                            FieldValue.serverTimestamp(),
+                                      });
+
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(SnackBar(
+                                              content: Text('教材が移動されました')));
+                                    },
+                                  ),
+                                )
+                              : Card(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.insert_drive_file, size: 40),
+                                      SizedBox(height: 10),
+                                      Text(material['title']),
+                                    ],
+                                  ),
+                                );
                         },
                       );
                     },
@@ -392,9 +473,9 @@ class _PageTwoState extends State<PageTwo> {
         title: Text('教材の管理'),
         actions: [
           IconButton(
-            icon: Icon(Icons.edit),
+            icon: Icon(Icons.more_vert), // ここでは3点アイコンを使用していますが、編集アイコンも可
             onPressed: () {
-              _showEditMenu(context);
+              _showEditMenu(context); // 右上の編集ボタンが押されたときに _showEditMenu を呼び出します
             },
           ),
         ],
