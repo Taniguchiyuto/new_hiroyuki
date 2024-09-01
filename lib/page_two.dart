@@ -85,7 +85,6 @@ class _PageTwoState extends State<PageTwo> {
                 onTap: () {
                   Navigator.pop(context);
                   _organizeShelf();
-                  _showCancelSnackbar(); // キャンセルボタンを表示するためにスナックバーを表示
                 },
               ),
               ListTile(
@@ -102,26 +101,16 @@ class _PageTwoState extends State<PageTwo> {
     );
   }
 
-  // キャンセルボタンを表示するためのスナックバー
-  void _showCancelSnackbar() {
+  // 教材を削除する関数
+  Future<void> _deleteMaterial(String subjectId, String materialId) async {
+    await _firestore
+        .collection('subjects')
+        .doc(subjectId)
+        .collection('materials')
+        .doc(materialId)
+        .delete();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('整理モード中'),
-            TextButton(
-              child: Text('キャンセル', style: TextStyle(color: Colors.white)),
-              onPressed: () {
-                _organizeShelf(); // 整理モードをキャンセルする
-                ScaffoldMessenger.of(context)
-                    .hideCurrentSnackBar(); // スナックバーを非表示にする
-              },
-            ),
-          ],
-        ),
-        duration: Duration(days: 1), // ユーザーがキャンセルを押すまでスナックバーを表示
-      ),
+      SnackBar(content: Text('教材が削除されました')),
     );
   }
 
@@ -343,188 +332,222 @@ class _PageTwoState extends State<PageTwo> {
 
         final subjects = subjectSnapshot.data!.docs;
 
-        return ListView.builder(
-          itemCount: subjects.length,
-          itemBuilder: (context, index) {
-            final subject = subjects[index];
+        return Stack(
+          children: [
+            ListView.builder(
+              itemCount: subjects.length,
+              itemBuilder: (context, index) {
+                final subject = subjects[index];
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DragTarget<Map<String, dynamic>>(
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DragTarget<Map<String, dynamic>>(
+                      onAccept: (data) async {
+                        await _firestore
+                            .collection('subjects')
+                            .doc(data['subjectId'])
+                            .collection('materials')
+                            .doc(data['materialId'])
+                            .delete();
+
+                        await _firestore
+                            .collection('subjects')
+                            .doc(subject.id)
+                            .collection('materials')
+                            .add({
+                          'title': data['title'],
+                          'createdAt': FieldValue.serverTimestamp(),
+                        });
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('教材が移動されました')),
+                        );
+                      },
+                      builder: (context, candidateData, rejectedData) {
+                        return Container(
+                          color: candidateData.isNotEmpty
+                              ? Colors.grey[200]
+                              : null, // ドラッグ中の視覚的フィードバックを追加
+                          child: ListTile(
+                            title: Text(subject['name']),
+                            leading: Icon(Icons.book),
+                          ),
+                        );
+                      },
+                    ),
+                    SizedBox(
+                      height: 200,
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: _firestore
+                            .collection('subjects')
+                            .doc(subject.id)
+                            .collection('materials')
+                            .orderBy('createdAt', descending: true)
+                            .snapshots(),
+                        builder: (context, materialSnapshot) {
+                          if (materialSnapshot.hasError) {
+                            return Center(
+                                child: Text(
+                                    'エラーが発生しました: ${materialSnapshot.error}'));
+                          }
+                          if (materialSnapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return Center(child: CircularProgressIndicator());
+                          }
+                          if (!materialSnapshot.hasData ||
+                              materialSnapshot.data!.docs.isEmpty) {
+                            return Center(child: Text('この科目に表示する教材がありません'));
+                          }
+
+                          final materials = materialSnapshot.data!.docs;
+
+                          return GridView.builder(
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                            ),
+                            itemCount: materials.length,
+                            itemBuilder: (context, materialIndex) {
+                              final material = materials[materialIndex];
+
+                              // 本棚整理モードによる分岐
+                              return _isOrganizing
+                                  ? LongPressDraggable<Map<String, dynamic>>(
+                                      data: {
+                                        'materialId': material.id,
+                                        'subjectId': subject.id,
+                                        'title': material['title'],
+                                      },
+                                      feedback: Material(
+                                        child: Card(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.insert_drive_file,
+                                                  size: 40),
+                                              SizedBox(height: 10),
+                                              Text(material['title']),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      childWhenDragging: Opacity(
+                                        opacity: 0.5,
+                                        child: Card(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.insert_drive_file,
+                                                  size: 40),
+                                              SizedBox(height: 10),
+                                              Text(material['title']),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      child: DragTarget<Map<String, dynamic>>(
+                                        builder: (context, candidateData,
+                                            rejectedData) {
+                                          return Card(
+                                            child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Icon(Icons.insert_drive_file,
+                                                    size: 40),
+                                                SizedBox(height: 10),
+                                                Text(material['title']),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                        onAccept: (data) async {
+                                          if (data['subjectId'] == subject.id) {
+                                            // 同じ科目内での順序変更
+                                            await _reorderMaterial(
+                                              subject.id,
+                                              data['materialId'],
+                                              material.id,
+                                            );
+                                          } else {
+                                            // 別の科目へ移動
+                                            await _firestore
+                                                .collection('subjects')
+                                                .doc(data['subjectId'])
+                                                .collection('materials')
+                                                .doc(data['materialId'])
+                                                .delete();
+
+                                            await _firestore
+                                                .collection('subjects')
+                                                .doc(subject.id)
+                                                .collection('materials')
+                                                .add({
+                                              'title': data['title'],
+                                              'createdAt':
+                                                  FieldValue.serverTimestamp(),
+                                            });
+                                          }
+
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(SnackBar(
+                                                  content: Text('教材が移動されました')));
+                                        },
+                                      ),
+                                    )
+                                  : Card(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.insert_drive_file,
+                                              size: 40),
+                                          SizedBox(height: 10),
+                                          Text(material['title']),
+                                        ],
+                                      ),
+                                    );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                    Divider(),
+                  ],
+                );
+              },
+            ),
+            // 削除ボックスを整理モード中に画面下部に表示
+            if (_isOrganizing)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: DragTarget<Map<String, dynamic>>(
                   onAccept: (data) async {
-                    await _firestore
-                        .collection('subjects')
-                        .doc(data['subjectId'])
-                        .collection('materials')
-                        .doc(data['materialId'])
-                        .delete();
-
-                    await _firestore
-                        .collection('subjects')
-                        .doc(subject.id)
-                        .collection('materials')
-                        .add({
-                      'title': data['title'],
-                      'createdAt': FieldValue.serverTimestamp(),
-                    });
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('教材が移動されました')),
-                    );
+                    await _deleteMaterial(
+                        data['subjectId'], data['materialId']);
                   },
                   builder: (context, candidateData, rejectedData) {
                     return Container(
-                      color: candidateData.isNotEmpty
-                          ? Colors.grey[200]
-                          : null, // ドラッグ中の視覚的フィードバックを追加
-                      child: ListTile(
-                        title: Text(subject['name']),
-                        leading: Icon(Icons.book),
+                      color: Colors.red,
+                      height: 60,
+                      child: Center(
+                        child: Text(
+                          candidateData.isNotEmpty
+                              ? 'ここにドロップして削除'
+                              : 'ドラッグしてここにドロップ',
+                          style: TextStyle(color: Colors.white, fontSize: 18),
+                        ),
                       ),
                     );
                   },
                 ),
-                SizedBox(
-                  height: 200,
-                  child: StreamBuilder<QuerySnapshot>(
-                    stream: _firestore
-                        .collection('subjects')
-                        .doc(subject.id)
-                        .collection('materials')
-                        .orderBy('createdAt', descending: true)
-                        .snapshots(),
-                    builder: (context, materialSnapshot) {
-                      if (materialSnapshot.hasError) {
-                        return Center(
-                            child:
-                                Text('エラーが発生しました: ${materialSnapshot.error}'));
-                      }
-                      if (materialSnapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return Center(child: CircularProgressIndicator());
-                      }
-                      if (!materialSnapshot.hasData ||
-                          materialSnapshot.data!.docs.isEmpty) {
-                        return Center(child: Text('この科目に表示する教材がありません'));
-                      }
-
-                      final materials = materialSnapshot.data!.docs;
-
-                      return GridView.builder(
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                        ),
-                        itemCount: materials.length,
-                        itemBuilder: (context, materialIndex) {
-                          final material = materials[materialIndex];
-
-                          // 本棚整理モードによる分岐
-                          return _isOrganizing
-                              ? LongPressDraggable<Map<String, dynamic>>(
-                                  data: {
-                                    'materialId': material.id,
-                                    'subjectId': subject.id,
-                                    'title': material['title'],
-                                  },
-                                  feedback: Material(
-                                    child: Card(
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(Icons.insert_drive_file,
-                                              size: 40),
-                                          SizedBox(height: 10),
-                                          Text(material['title']),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  childWhenDragging: Opacity(
-                                    opacity: 0.5,
-                                    child: Card(
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(Icons.insert_drive_file,
-                                              size: 40),
-                                          SizedBox(height: 10),
-                                          Text(material['title']),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  child: DragTarget<Map<String, dynamic>>(
-                                    builder:
-                                        (context, candidateData, rejectedData) {
-                                      return Card(
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(Icons.insert_drive_file,
-                                                size: 40),
-                                            SizedBox(height: 10),
-                                            Text(material['title']),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                    onAccept: (data) async {
-                                      if (data['subjectId'] == subject.id) {
-                                        // 同じ科目内での順序変更
-                                        await _reorderMaterial(
-                                          subject.id,
-                                          data['materialId'],
-                                          material.id,
-                                        );
-                                      } else {
-                                        // 別の科目へ移動
-                                        await _firestore
-                                            .collection('subjects')
-                                            .doc(data['subjectId'])
-                                            .collection('materials')
-                                            .doc(data['materialId'])
-                                            .delete();
-
-                                        await _firestore
-                                            .collection('subjects')
-                                            .doc(subject.id)
-                                            .collection('materials')
-                                            .add({
-                                          'title': data['title'],
-                                          'createdAt':
-                                              FieldValue.serverTimestamp(),
-                                        });
-                                      }
-
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(SnackBar(
-                                              content: Text('教材が移動されました')));
-                                    },
-                                  ),
-                                )
-                              : Card(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.insert_drive_file, size: 40),
-                                      SizedBox(height: 10),
-                                      Text(material['title']),
-                                    ],
-                                  ),
-                                );
-                        },
-                      );
-                    },
-                  ),
-                ),
-                Divider(),
-              ],
-            );
-          },
+              ),
+          ],
         );
       },
     );
@@ -561,6 +584,11 @@ class _PageTwoState extends State<PageTwo> {
       appBar: AppBar(
         title: Text('教材の管理'),
         actions: [
+          if (_isOrganizing)
+            IconButton(
+              icon: Icon(Icons.cancel),
+              onPressed: _organizeShelf, // 整理モードをキャンセルする
+            ),
           IconButton(
             icon: Icon(Icons.more_vert), // 右上のボタン
             onPressed: () {
