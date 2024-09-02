@@ -18,6 +18,7 @@ class _PageTwoState extends State<PageTwo> {
   bool _isOrganizing = false; // 本棚整理モードのフラグを追加
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _subjectController = TextEditingController();
+  Color _selectedColor = Colors.black; // デフォルトの色
 
   @override
   void initState() {
@@ -46,8 +47,80 @@ class _PageTwoState extends State<PageTwo> {
     });
   }
 
+  // 勉強時間を入力するダイアログを表示する関数
+  void _showStudyTimeDialog(String subjectId, String materialId) {
+    final TextEditingController _studyTimeController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('勉強時間を入力'),
+          content: TextField(
+            controller: _studyTimeController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: '勉強時間 (分)',
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('キャンセル'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('保存'),
+              onPressed: () async {
+                double studyTime =
+                    double.tryParse(_studyTimeController.text) ?? 0.0;
+                await _incrementStudyTime(subjectId, materialId, studyTime);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 勉強時間をインクリメントする関数
+  Future<void> _incrementStudyTime(
+      String subjectId, String materialId, double studyTime) async {
+    final DocumentReference materialRef = _firestore
+        .collection('subjects')
+        .doc(subjectId)
+        .collection('materials')
+        .doc(materialId);
+
+    await _firestore.runTransaction((transaction) async {
+      DocumentSnapshot snapshot = await transaction.get(materialRef);
+
+      if (!snapshot.exists) {
+        throw Exception("教材が存在しません！");
+      }
+
+      // snapshot.data() が null でないことを確認
+      final data = snapshot.data() as Map<String, dynamic>?;
+
+      // 'studyTime' フィールドが存在するかどうかを確認し、存在しない場合は初期化する
+      double currentStudyTime = (data != null && data.containsKey('studyTime'))
+          ? data['studyTime']
+          : 0.0;
+
+      // 新しい勉強時間を既存の勉強時間に加える
+      double newStudyTime = currentStudyTime + studyTime;
+      transaction.update(materialRef, {'studyTime': newStudyTime});
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('勉強時間が保存されました')),
+    );
+  }
+
   // 編集ボタンが押されたときに表示するメニュー
-  void _showEditMenu(BuildContext context) {
+  void _showEditMenu(BuildContext context, String subjectId) {
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
@@ -88,6 +161,14 @@ class _PageTwoState extends State<PageTwo> {
                 },
               ),
               ListTile(
+                leading: Icon(Icons.delete),
+                title: Text('科目を削除'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showDeleteSubjectDialog(context, subjectId);
+                },
+              ),
+              ListTile(
                 leading: Icon(Icons.cancel),
                 title: Text('キャンセル'),
                 onTap: () {
@@ -111,6 +192,33 @@ class _PageTwoState extends State<PageTwo> {
         .delete();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('教材が削除されました')),
+    );
+  }
+
+  // 科目を削除する関数
+  Future<void> _deleteSubject(String subjectId) async {
+    if (subjectId.isEmpty) {
+      throw Exception('削除する科目が選択されていません');
+    }
+
+    final batch = _firestore.batch();
+    final materialsSnapshot = await _firestore
+        .collection('subjects')
+        .doc(subjectId)
+        .collection('materials')
+        .get();
+
+    for (var material in materialsSnapshot.docs) {
+      batch.delete(material.reference);
+    }
+
+    final subjectRef = _firestore.collection('subjects').doc(subjectId);
+    batch.delete(subjectRef);
+
+    await batch.commit();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('科目と関連する教材が削除されました')),
     );
   }
 
@@ -170,9 +278,35 @@ class _PageTwoState extends State<PageTwo> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('新しい科目を追加'),
-          content: TextField(
-            controller: _subjectController,
-            decoration: InputDecoration(labelText: '科目名'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              TextField(
+                controller: _subjectController,
+                decoration: InputDecoration(labelText: '科目名'),
+              ),
+              SizedBox(height: 16),
+              Text('アイコンの色を選択:'),
+              SizedBox(height: 8),
+              Wrap(
+                spacing: 8.0, // 間隔を設定
+                children: [
+                  _buildColorOption(Colors.red),
+                  _buildColorOption(Colors.green),
+                  _buildColorOption(Colors.blue),
+                  _buildColorOption(Colors.yellow),
+                  _buildColorOption(Colors.orange),
+                  _buildColorOption(Colors.purple),
+                  _buildColorOption(Colors.pink),
+                  _buildColorOption(Colors.brown),
+                  _buildColorOption(Colors.teal),
+                  _buildColorOption(Colors.cyan),
+                  _buildColorOption(Colors.lime),
+                  _buildColorOption(Colors.indigo),
+                  _buildColorOption(Colors.amber),
+                ],
+              ),
+            ],
           ),
           actions: <Widget>[
             TextButton(
@@ -191,6 +325,23 @@ class _PageTwoState extends State<PageTwo> {
           ],
         );
       },
+    );
+  }
+
+  // 色の選択肢を作成するヘルパー関数
+  Widget _buildColorOption(Color color) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedColor = color;
+        });
+      },
+      child: CircleAvatar(
+        backgroundColor: color,
+        child: _selectedColor == color
+            ? Icon(Icons.check, color: Colors.white)
+            : null,
+      ),
     );
   }
 
@@ -255,15 +406,52 @@ class _PageTwoState extends State<PageTwo> {
     );
   }
 
+  // 科目を削除する確認ダイアログを表示する関数
+  void _showDeleteSubjectDialog(BuildContext context, String subjectId) {
+    if (subjectId.isEmpty) {
+      // subjectIdが空の場合にエラーを防ぐためのチェック
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('削除する科目が選択されていません')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('科目を削除'),
+          content: Text('この科目と関連するすべての教材を削除してもよろしいですか？'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('キャンセル'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('削除'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteSubject(subjectId);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   // 科目を追加する処理
   Future<void> _addNewSubject() async {
     if (_subjectController.text.isNotEmpty) {
-      await _addSubject(_subjectController.text);
+      await _addSubject(_subjectController.text, _selectedColor);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('科目が正常に追加されました')),
       );
       setState(() {
         _subjectController.clear();
+        _selectedColor = Colors.black; // デフォルトの色にリセット
       });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -290,9 +478,10 @@ class _PageTwoState extends State<PageTwo> {
   }
 
   // Firestoreに科目データを保存する関数
-  Future<void> _addSubject(String name) async {
+  Future<void> _addSubject(String name, Color color) async {
     await _firestore.collection('subjects').add({
       'name': name,
+      'color': color.value, // 色の値を保存
       'uid': uid,
       'createdAt': FieldValue.serverTimestamp(),
     });
@@ -308,6 +497,7 @@ class _PageTwoState extends State<PageTwo> {
           .add({
         'title': title,
         'createdAt': FieldValue.serverTimestamp(),
+        'studyTime': 0.0, // 初期の勉強時間フィールドを追加
       });
     }
   }
@@ -338,6 +528,12 @@ class _PageTwoState extends State<PageTwo> {
               itemCount: subjects.length,
               itemBuilder: (context, index) {
                 final subject = subjects[index];
+                final subjectData =
+                    subject.data() as Map<String, dynamic>?; // データをMapとしてキャスト
+                final subjectColor =
+                    (subjectData != null && subjectData.containsKey('color'))
+                        ? Color(subjectData['color'])
+                        : Colors.black; // デフォルトの色を設定
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,6 +554,7 @@ class _PageTwoState extends State<PageTwo> {
                             .add({
                           'title': data['title'],
                           'createdAt': FieldValue.serverTimestamp(),
+                          'studyTime': 0.0, // 勉強時間フィールドを初期化
                         });
 
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -370,8 +567,12 @@ class _PageTwoState extends State<PageTwo> {
                               ? Colors.grey[200]
                               : null, // ドラッグ中の視覚的フィードバックを追加
                           child: ListTile(
-                            title: Text(subject['name']),
-                            leading: Icon(Icons.book),
+                            title: Text(
+                                subjectData?['name'] ?? 'No Name'), // Nullチェック
+                            leading: Icon(Icons.book, color: subjectColor),
+                            onLongPress: () {
+                              _showEditMenu(context, subject.id);
+                            },
                           ),
                         );
                       },
@@ -411,7 +612,6 @@ class _PageTwoState extends State<PageTwo> {
                             itemBuilder: (context, materialIndex) {
                               final material = materials[materialIndex];
 
-                              // 本棚整理モードによる分岐
                               return _isOrganizing
                                   ? LongPressDraggable<Map<String, dynamic>>(
                                       data: {
@@ -466,14 +666,12 @@ class _PageTwoState extends State<PageTwo> {
                                         },
                                         onAccept: (data) async {
                                           if (data['subjectId'] == subject.id) {
-                                            // 同じ科目内での順序変更
                                             await _reorderMaterial(
                                               subject.id,
                                               data['materialId'],
                                               material.id,
                                             );
                                           } else {
-                                            // 別の科目へ移動
                                             await _firestore
                                                 .collection('subjects')
                                                 .doc(data['subjectId'])
@@ -489,6 +687,7 @@ class _PageTwoState extends State<PageTwo> {
                                               'title': data['title'],
                                               'createdAt':
                                                   FieldValue.serverTimestamp(),
+                                              'studyTime': 0.0, // 勉強時間フィールドを初期化
                                             });
                                           }
 
@@ -498,16 +697,22 @@ class _PageTwoState extends State<PageTwo> {
                                         },
                                       ),
                                     )
-                                  : Card(
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(Icons.insert_drive_file,
-                                              size: 40),
-                                          SizedBox(height: 10),
-                                          Text(material['title']),
-                                        ],
+                                  : GestureDetector(
+                                      onTap: () {
+                                        _showStudyTimeDialog(
+                                            subject.id, material.id);
+                                      },
+                                      child: Card(
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.insert_drive_file,
+                                                size: 40),
+                                            SizedBox(height: 10),
+                                            Text(material['title']),
+                                          ],
+                                        ),
                                       ),
                                     );
                             },
@@ -520,7 +725,6 @@ class _PageTwoState extends State<PageTwo> {
                 );
               },
             ),
-            // 削除ボックスを整理モード中に画面下部に表示
             if (_isOrganizing)
               Positioned(
                 bottom: 0,
@@ -592,7 +796,7 @@ class _PageTwoState extends State<PageTwo> {
           IconButton(
             icon: Icon(Icons.more_vert), // 右上のボタン
             onPressed: () {
-              _showEditMenu(context); // ボタンが押されたときに編集メニューを表示する
+              _showEditMenu(context, ''); // ボタンが押されたときに編集メニューを表示する
             },
           ),
         ],
@@ -639,8 +843,7 @@ class _BookSearchWidgetState extends State<BookSearchWidget> {
       _loading = true;
     });
 
-    final apiKey =
-        'AIzaSyAuaDS5E3JDnzicXr4tM3SgBAy8qUpy-4s'; // ここにGoogle Books APIキーを入力
+    final apiKey = 'YOUR_GOOGLE_BOOKS_API_KEY'; // ここにGoogle Books APIキーを入力
     final query = _searchController.text;
     final response = await http.get(
       Uri.parse(
