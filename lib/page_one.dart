@@ -7,7 +7,7 @@ class PageOne extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Home Page"),
+        title: Text(""),
         actions: [
           IconButton(
             icon: Icon(Icons.logout),

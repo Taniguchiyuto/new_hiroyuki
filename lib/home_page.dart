@@ -27,13 +27,13 @@ class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
 
   // ページごとのタイトルリストを用意
-  final List<String> _titles = [
-    'Home',
-    'Record',
-    'Chat',
-    'Report',
-    'Notification',
-  ];
+  // final List<String> _titles = [
+  //   'Home Page',
+  //   '教材の管理',
+  //   'チャット',
+  //   'レポート',
+  //   '通知',
+  // ];
 
   final List<Widget> _pages = [
     PageOne(),
@@ -47,10 +47,6 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
-        appBar: AppBar(
-          // タイトルを現在のページに応じて動的に変更
-          title: Text(_titles[_currentIndex]),
-        ),
         body: IndexedStack(
           index: _currentIndex,
           children: _pages,

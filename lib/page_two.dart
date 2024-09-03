@@ -88,30 +88,45 @@ class _PageTwoState extends State<PageTwo> {
   // 勉強時間をインクリメントする関数
   Future<void> _incrementStudyTime(
       String subjectId, String materialId, double studyTime) async {
-    final DocumentReference materialRef = _firestore
-        .collection('subjects')
-        .doc(subjectId)
-        .collection('materials')
-        .doc(materialId);
+    final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+    final String formattedDate =
+        "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}";
 
     await _firestore.runTransaction((transaction) async {
-      DocumentSnapshot snapshot = await transaction.get(materialRef);
+      // 1. まず、必要なすべてのドキュメントを一括で読み取る
+      final materialRef = _firestore
+          .collection('subjects')
+          .doc(subjectId)
+          .collection('materials')
+          .doc(materialId);
 
-      if (!snapshot.exists) {
+      DocumentSnapshot materialSnapshot = await transaction.get(materialRef);
+      if (!materialSnapshot.exists) {
         throw Exception("教材が存在しません！");
       }
 
-      // snapshot.data() が null でないことを確認
-      final data = snapshot.data() as Map<String, dynamic>?;
+      double currentStudyTime = materialSnapshot['studyTime'] ?? 0.0;
 
-      // 'studyTime' フィールドが存在するかどうかを確認し、存在しない場合は初期化する
-      double currentStudyTime = (data != null && data.containsKey('studyTime'))
-          ? data['studyTime']
-          : 0.0;
+      final studyLogRef =
+          materialRef.collection('studyLogs').doc(formattedDate);
+      DocumentSnapshot logSnapshot = await transaction.get(studyLogRef);
+      double currentLogTime =
+          logSnapshot.exists ? logSnapshot['studyTime'] ?? 0.0 : 0.0;
 
-      // 新しい勉強時間を既存の勉強時間に加える
-      double newStudyTime = currentStudyTime + studyTime;
-      transaction.update(materialRef, {'studyTime': newStudyTime});
+      // 2. その後に書き込み操作を行う
+      transaction
+          .update(materialRef, {'studyTime': currentStudyTime + studyTime});
+
+      if (logSnapshot.exists) {
+        transaction
+            .update(studyLogRef, {'studyTime': currentLogTime + studyTime});
+      } else {
+        transaction.set(studyLogRef, {
+          'date': formattedDate,
+          'studyTime': studyTime,
+        });
+      }
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -490,14 +505,26 @@ class _PageTwoState extends State<PageTwo> {
   // Firestoreに教材データを保存する関数
   Future<void> _addStudyMaterial(String title) async {
     if (selectedSubjectId != null) {
-      await _firestore
+      final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+      // 1. `materials`コレクションに新しいドキュメントを追加
+      final DocumentReference materialRef = await _firestore
           .collection('subjects')
           .doc(selectedSubjectId)
           .collection('materials')
           .add({
         'title': title,
         'createdAt': FieldValue.serverTimestamp(),
-        'studyTime': 0.0, // 初期の勉強時間フィールドを追加
+        'studyTime': 0.0, // 初期の総勉強時間
+      });
+
+      // 2. `studyLogs`サブコレクションに初期データを追加
+      String formattedDate =
+          "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}";
+
+      await materialRef.collection('studyLogs').doc(formattedDate).set({
+        'date': formattedDate,
+        'studyTime': 0.0, // 初期の勉強時間を0に設定
       });
     }
   }
@@ -843,7 +870,8 @@ class _BookSearchWidgetState extends State<BookSearchWidget> {
       _loading = true;
     });
 
-    final apiKey = 'YOUR_GOOGLE_BOOKS_API_KEY'; // ここにGoogle Books APIキーを入力
+    final apiKey =
+        'AIzaSyAuaDS5E3JDnzicXr4tM3SgBAy8qUpy-4s'; // ここにGoogle Books APIキーを入力
     final query = _searchController.text;
     final response = await http.get(
       Uri.parse(
