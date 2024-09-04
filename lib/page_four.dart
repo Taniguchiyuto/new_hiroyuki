@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'package:intl/intl.dart';
 
 class PageFour extends StatefulWidget {
@@ -11,6 +13,7 @@ class PageFour extends StatefulWidget {
 class _PageFourState extends State<PageFour> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String? selectedMaterialTitle;
+  DateTime? targetDate;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -69,137 +72,182 @@ class _PageFourState extends State<PageFour> {
               ],
             ),
           ),
-          Expanded(
-            child: StreamBuilder<List<BarChartGroupData>>(
-              stream: _getBarChartStream(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
-                } else if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return Center(child: Text('No data available'));
-                }
+          StreamBuilder<List<BarChartGroupData>>(
+            stream: _getBarChartStream(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return Center(child: Text('No data available'));
+              }
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0), // 横のパディングを調整
-                  child: Column(
-                    children: [
-                      SizedBox(height: 20), // 上の表とのスペースを追加
-                      Container(
-                        height: 200, // グラフの高さを調整
-                        child: BarChart(
-                          BarChartData(
-                            maxY: 720, // 12時間（720分）を最大値に設定
-                            barGroups: snapshot.data!,
-                            borderData: FlBorderData(show: false),
-                            titlesData: FlTitlesData(
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  getTitlesWidget:
-                                      (double value, TitleMeta meta) {
-                                    DateTime date =
-                                        DateTime.fromMillisecondsSinceEpoch(
-                                            value.toInt());
-                                    return Padding(
-                                      padding: const EdgeInsets.only(top: 8.0),
-                                      child: Text(
-                                        "${date.month}/${date.day}",
-                                        style: TextStyle(fontSize: 12),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  interval: 180,
-                                  getTitlesWidget:
-                                      (double value, TitleMeta meta) {
-                                    switch (value.toInt()) {
-                                      case 180:
-                                        return Text('3h',
-                                            style: TextStyle(fontSize: 12));
-                                      case 360:
-                                        return Text('6h',
-                                            style: TextStyle(fontSize: 12));
-                                      case 540:
-                                        return Text('9h',
-                                            style: TextStyle(fontSize: 12));
-                                      case 720:
-                                        return Text('12h',
-                                            style: TextStyle(fontSize: 12));
-                                      default:
-                                        return Text('');
-                                    }
-                                  },
-                                ),
-                              ),
-                              rightTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: false, // Y軸の右側のラベルを非表示にする
-                                ),
-                              ),
-                              topTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: false, // これにより上部のタイトルを非表示にする
-                                ),
-                              ),
-                            ),
-                            gridData: FlGridData(
-                              show: true,
-                              drawVerticalLine: false,
-                              horizontalInterval: 180, // 3時間ごとに水平線を表示
-                              getDrawingHorizontalLine: (value) {
-                                return FlLine(
-                                  color: Colors.grey,
-                                  strokeWidth: 0.5, // ラインの幅を縮小
-                                );
-                              },
-                            ),
-                            barTouchData: BarTouchData(
-                              touchTooltipData: BarTouchTooltipData(
-                                tooltipMargin: 4, // マージンを縮小
-                                tooltipPadding: EdgeInsets.all(4), // パディングを縮小
-                                getTooltipItem:
-                                    (group, groupIndex, rod, rodIndex) {
+              return Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16.0), // 横のパディングを調整
+                child: Column(
+                  children: [
+                    SizedBox(height: 10), // 上の表とのスペースを追加
+                    Container(
+                      height: 200, // グラフの高さを調整
+                      child: BarChart(
+                        BarChartData(
+                          maxY: 720, // 12時間（720分）を最大値に設定
+                          barGroups: snapshot.data!,
+                          borderData: FlBorderData(show: false),
+                          titlesData: FlTitlesData(
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                getTitlesWidget:
+                                    (double value, TitleMeta meta) {
                                   DateTime date =
                                       DateTime.fromMillisecondsSinceEpoch(
-                                          group.x.toInt());
-                                  return BarTooltipItem(
-                                    "${date.month}/${date.day}\n",
-                                    TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12), // フォントサイズを調整
-                                    children: <TextSpan>[
-                                      TextSpan(
-                                        text:
-                                            _convertToHoursAndMinutes(rod.toY),
-                                        style: TextStyle(
-                                            color: Colors.yellow,
-                                            fontSize: 12), // フォントサイズを調整
-                                      ),
-                                    ],
+                                          value.toInt());
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 8.0),
+                                    child: Text(
+                                      "${date.month}/${date.day}",
+                                      style: TextStyle(fontSize: 12),
+                                    ),
                                   );
                                 },
                               ),
                             ),
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                interval: 180,
+                                getTitlesWidget:
+                                    (double value, TitleMeta meta) {
+                                  switch (value.toInt()) {
+                                    case 180:
+                                      return Text('3h',
+                                          style: TextStyle(fontSize: 12));
+                                    case 360:
+                                      return Text('6h',
+                                          style: TextStyle(fontSize: 12));
+                                    case 540:
+                                      return Text('9h',
+                                          style: TextStyle(fontSize: 12));
+                                    case 720:
+                                      return Text('12h',
+                                          style: TextStyle(fontSize: 12));
+                                    default:
+                                      return Text('');
+                                  }
+                                },
+                              ),
+                            ),
+                            rightTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: false, // Y軸の右側のラベルを非表示にする
+                              ),
+                            ),
+                            topTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: false, // これにより上部のタイトルを非表示にする
+                              ),
+                            ),
+                          ),
+                          gridData: FlGridData(
+                            show: true,
+                            drawVerticalLine: false,
+                            horizontalInterval: 180, // 3時間ごとに水平線を表示
+                            getDrawingHorizontalLine: (value) {
+                              return FlLine(
+                                color: Colors.grey,
+                                strokeWidth: 0.5, // ラインの幅を縮小
+                              );
+                            },
+                          ),
+                          barTouchData: BarTouchData(
+                            touchTooltipData: BarTouchTooltipData(
+                              tooltipMargin: 4, // マージンを縮小
+                              tooltipPadding: EdgeInsets.all(4), // パディングを縮小
+                              getTooltipItem:
+                                  (group, groupIndex, rod, rodIndex) {
+                                DateTime date =
+                                    DateTime.fromMillisecondsSinceEpoch(
+                                        group.x.toInt());
+                                return BarTooltipItem(
+                                  "${date.month}/${date.day}\n",
+                                  TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12), // フォントサイズを調整
+                                  children: <TextSpan>[
+                                    TextSpan(
+                                      text: _convertToHoursAndMinutes(rod.toY),
+                                      style: TextStyle(
+                                          color: Colors.yellow,
+                                          fontSize: 12), // フォントサイズを調整
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          SizedBox(height: 20),
+          _buildCountdownSection(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCountdownSection() {
+    String countdownText = "設定されていません";
+
+    if (targetDate != null) {
+      Duration difference = targetDate!.difference(DateTime.now());
+      countdownText = "${difference.inDays}日";
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(1.0),
+      child: Column(
+        children: [
+          Text(
+            "イベントまでのカウントダウン",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 10),
+          Text(
+            countdownText,
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 10),
+          ElevatedButton(
+            onPressed: () => _selectDate(context),
+            child: Text('イベントの日付を設定'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: targetDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2101),
+    );
+
+    if (picked != null && picked != targetDate) {
+      setState(() {
+        targetDate = picked;
+      });
+    }
   }
 
   Stream<double> _getTodayStudyTimeStream() {
@@ -297,6 +345,9 @@ class _PageFourState extends State<PageFour> {
         String date = logDoc['date']; // 日付
         String materialId = logDoc.reference.parent.parent!.id; // 教材のID
         double studyTime = logDoc['studyTime'].toDouble();
+        final parentRef = logDoc.reference.parent.parent!;
+        final parentDoc = await parentRef.get();
+        print(parentDoc.get('title'));
 
         materialIds.add(materialId); // 教材IDを追加
 
