@@ -74,6 +74,7 @@ class _ChatScreenState extends State<ChatScreen> {
   List<Map<String, String>> messages = [];
 
   // OpenAI APIキー
+  final String apiKey = 'your_openai_api_key';
 
   // GPT APIを呼び出す関数
   Future<String> callGPTApi(String message) async {
