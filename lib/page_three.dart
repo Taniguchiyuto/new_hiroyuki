@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class PageThree extends StatelessWidget {
   final List<ChatItem> chatItems = [
@@ -74,7 +75,7 @@ class _ChatScreenState extends State<ChatScreen> {
   List<Map<String, String>> messages = [];
 
   // OpenAI APIキー
-  final String apiKey = 'your_openai_api_key';
+  final String apiKey = dotenv.env['API_KEY'] ?? '';
 
   // GPT APIを呼び出す関数
   Future<String> callGPTApi(String message) async {
