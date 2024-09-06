@@ -72,8 +72,14 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   List<Map<String, String>> messages = [];
+<<<<<<< HEAD
   final String apiKey =
       'xxxxxx'; // OpenAI APIキー
+=======
+
+  // OpenAI APIキー
+  final String apiKey = 'your_openai_api_key';
+>>>>>>> 1c28fbc (コア)
 
   // GPT APIを呼び出す関数
   Future<String> callGPTApi(String message) async {
