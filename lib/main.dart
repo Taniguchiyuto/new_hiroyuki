@@ -3,10 +3,12 @@ import 'auth_screen.dart'; // ログイン画面をインポート
 import 'home_page.dart'; // HomePageをインポート
 import 'package:firebase_auth/firebase_auth.dart'; // FirebaseAuthをインポート
 import 'package:firebase_core/firebase_core.dart'; // Firebase初期化をインポート
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Flutterの初期化
-  await Firebase.initializeApp(); // Firebaseの初期化
+  await Firebase.initializeApp();
+  await dotenv.load(fileName: ".env"); // Firebaseの初期化
   runApp(MyApp());
 }
 
