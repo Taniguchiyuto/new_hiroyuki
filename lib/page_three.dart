@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class PageThree extends StatelessWidget {
   final List<ChatItem> chatItems = [
@@ -37,8 +39,8 @@ class PageThree extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) =>
-                        ChatScreen(name: chatItems[index].name)),
+                  builder: (context) => ChatScreen(name: chatItems[index].name),
+                ),
               );
             },
           );
@@ -70,15 +72,59 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   List<Map<String, String>> messages = [];
+  final String apiKey =
+      'sk-8flOXDFFVcGdeOZB4zbkCb1h0wrxjOQze3mXzZEf--T3BlbkFJvtdlUMLr6OiCY-IvDnwD0Wkz6pPL1yFoJHogryGxQA'; // OpenAI APIキー
 
-  void sendMessage(String message) {
+  // GPT APIを呼び出す関数
+  Future<String> callGPTApi(String message) async {
+    try {
+      final response = await http.post(
+        Uri.parse('https://api.openai.com/v1/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $apiKey',
+        },
+        body: jsonEncode({
+          'model': 'gpt-4',
+          'messages': [
+            {'role': 'system', 'content': 'You are a helpful assistant.'},
+            {'role': 'user', 'content': message},
+          ],
+          'max_tokens': 100, // 返信の長さ
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        // UTF-8でレスポンスをデコード
+        final decodedBody = utf8.decode(response.bodyBytes);
+        final Map<String, dynamic> responseData = json.decode(decodedBody);
+        return responseData['choices'][0]['message']['content'].trim();
+      } else {
+        print('APIエラー: ${response.statusCode}');
+        print('APIレスポンス: ${response.body}');
+        return "APIエラーが発生しました。";
+      }
+    } catch (e) {
+      print('エラー: $e');
+      return "エラーが発生しました。";
+    }
+  }
+
+  // メッセージを送信してAPIからの返信を受け取る
+  Future<void> sendMessage(String message) async {
     setState(() {
       messages.add({"sender": "User", "text": message});
-      messages.add({"sender": "Hiroyuki", "text": "それってあなたの感想ですよね？"});
     });
+
+    String gptReply = await callGPTApi(message); // GPT APIを呼び出す
+
+    setState(() {
+      messages.add({"sender": widget.name, "text": gptReply});
+    });
+
     _controller.clear();
 
-    // メッセージ送信後、自動的に最新メッセージにスクロール
+    // メッセージ送信後に自動で最新メッセージにスクロール
     _scrollController.animateTo(
       _scrollController.position.maxScrollExtent,
       duration: Duration(milliseconds: 300),
