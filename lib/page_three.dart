@@ -74,6 +74,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   List<Map<String, String>> messages = [];
+
   final String apiKey = dotenv.env['API_KEY'] ?? '';
 
   // GPT APIを呼び出す関数
