@@ -77,6 +77,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   final String apiKey = dotenv.env['API_KEY'] ?? '';
 
+  // OpenAI APIキー
+
   // GPT APIを呼び出す関数
   Future<String> callGPTApi(String message) async {
     try {
