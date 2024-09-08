@@ -34,4 +34,5 @@ flutter:
     - assets/images/avatar2.png
     - assets/images/avatar3.png
     - assets/images/avatar4.png
+    - .env
   uses-material-design: true

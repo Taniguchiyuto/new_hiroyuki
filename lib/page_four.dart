@@ -89,104 +89,117 @@ class _PageFourState extends State<PageFour> {
                 child: Column(
                   children: [
                     SizedBox(height: 10), // 上の表とのスペースを追加
-                    Container(
-                      height: 200, // グラフの高さを調整
-                      child: BarChart(
-                        BarChartData(
-                          maxY: 720, // 12時間（720分）を最大値に設定
-                          barGroups: snapshot.data!,
-                          borderData: FlBorderData(show: false),
-                          titlesData: FlTitlesData(
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                getTitlesWidget:
-                                    (double value, TitleMeta meta) {
-                                  DateTime date =
-                                      DateTime.fromMillisecondsSinceEpoch(
-                                          value.toInt());
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top: 8.0),
-                                    child: Text(
-                                      "${date.month}/${date.day}",
-                                      style: TextStyle(fontSize: 12),
-                                    ),
+                    InkWell(
+                      onTap: () {
+                        //ここで別ページに遷移する
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => SecondPage()),
+                        );
+                      },
+                      child: Material(
+                        // ここでMaterialをラップ
+                        color: Colors.transparent, // 必要に応じて透明でもOK
+                        child: Container(
+                          height: 200, // グラフの高さを調整
+                          child: BarChart(
+                            BarChartData(
+                              maxY: 720, // 12時間（720分）を最大値に設定
+                              barGroups: snapshot.data!,
+                              borderData: FlBorderData(show: false),
+                              titlesData: FlTitlesData(
+                                bottomTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    getTitlesWidget:
+                                        (double value, TitleMeta meta) {
+                                      DateTime date =
+                                          DateTime.fromMillisecondsSinceEpoch(
+                                              value.toInt());
+                                      return Padding(
+                                        padding:
+                                            const EdgeInsets.only(top: 8.0),
+                                        child: Text(
+                                          "${date.month}/${date.day}",
+                                          style: TextStyle(fontSize: 12),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                leftTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    interval: 180,
+                                    getTitlesWidget:
+                                        (double value, TitleMeta meta) {
+                                      switch (value.toInt()) {
+                                        case 180:
+                                          return Text('3h',
+                                              style: TextStyle(fontSize: 12));
+                                        case 360:
+                                          return Text('6h',
+                                              style: TextStyle(fontSize: 12));
+                                        case 540:
+                                          return Text('9h',
+                                              style: TextStyle(fontSize: 12));
+                                        case 720:
+                                          return Text('12h',
+                                              style: TextStyle(fontSize: 12));
+                                        default:
+                                          return Text('');
+                                      }
+                                    },
+                                  ),
+                                ),
+                                rightTitles: AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false),
+                                ),
+                                topTitles: AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false),
+                                ),
+                              ),
+                              gridData: FlGridData(
+                                show: true,
+                                drawVerticalLine: false,
+                                horizontalInterval: 180, // 3時間ごとに水平線を表示
+                                getDrawingHorizontalLine: (value) {
+                                  return FlLine(
+                                    color: Colors.grey,
+                                    strokeWidth: 0.5, // ラインの幅を縮小
                                   );
                                 },
                               ),
-                            ),
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                interval: 180,
-                                getTitlesWidget:
-                                    (double value, TitleMeta meta) {
-                                  switch (value.toInt()) {
-                                    case 180:
-                                      return Text('3h',
-                                          style: TextStyle(fontSize: 12));
-                                    case 360:
-                                      return Text('6h',
-                                          style: TextStyle(fontSize: 12));
-                                    case 540:
-                                      return Text('9h',
-                                          style: TextStyle(fontSize: 12));
-                                    case 720:
-                                      return Text('12h',
-                                          style: TextStyle(fontSize: 12));
-                                    default:
-                                      return Text('');
-                                  }
-                                },
+                              barTouchData: BarTouchData(
+                                touchTooltipData: BarTouchTooltipData(
+                                  tooltipMargin: 4,
+                                  tooltipPadding: EdgeInsets.all(4),
+                                  getTooltipItem:
+                                      (group, groupIndex, rod, rodIndex) {
+                                    DateTime date =
+                                        DateTime.fromMillisecondsSinceEpoch(
+                                            group.x.toInt());
+                                    return BarTooltipItem(
+                                      "${date.month}/${date.day}\n",
+                                      TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                      children: <TextSpan>[
+                                        TextSpan(
+                                          text: _convertToHoursAndMinutes(
+                                              rod.toY),
+                                          style: TextStyle(
+                                              color: Colors.yellow,
+                                              fontSize: 12),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                                enabled: false,
                               ),
-                            ),
-                            rightTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: false, // Y軸の右側のラベルを非表示にする
-                              ),
-                            ),
-                            topTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: false, // これにより上部のタイトルを非表示にする
-                              ),
-                            ),
-                          ),
-                          gridData: FlGridData(
-                            show: true,
-                            drawVerticalLine: false,
-                            horizontalInterval: 180, // 3時間ごとに水平線を表示
-                            getDrawingHorizontalLine: (value) {
-                              return FlLine(
-                                color: Colors.grey,
-                                strokeWidth: 0.5, // ラインの幅を縮小
-                              );
-                            },
-                          ),
-                          barTouchData: BarTouchData(
-                            touchTooltipData: BarTouchTooltipData(
-                              tooltipMargin: 4, // マージンを縮小
-                              tooltipPadding: EdgeInsets.all(4), // パディングを縮小
-                              getTooltipItem:
-                                  (group, groupIndex, rod, rodIndex) {
-                                DateTime date =
-                                    DateTime.fromMillisecondsSinceEpoch(
-                                        group.x.toInt());
-                                return BarTooltipItem(
-                                  "${date.month}/${date.day}\n",
-                                  TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12), // フォントサイズを調整
-                                  children: <TextSpan>[
-                                    TextSpan(
-                                      text: _convertToHoursAndMinutes(rod.toY),
-                                      style: TextStyle(
-                                          color: Colors.yellow,
-                                          fontSize: 12), // フォントサイズを調整
-                                    ),
-                                  ],
-                                );
-                              },
                             ),
                           ),
                         ),
@@ -335,42 +348,19 @@ class _PageFourState extends State<PageFour> {
         .collectionGroup('studyLogs')
         .snapshots()
         .asyncMap((snapshot) async {
-      Map<String, Map<String, double>> dailyStudyTimeByMaterial =
-          {}; // 教材別の学習時間を保存
-      Set<String> materialIds = {}; // 全教材のIDを保持
-      Map<String, Color?> materialColors = {}; // 教材ごとの色を保持
+      Map<String, double> dailyStudyTime = {}; // 日付ごとの総勉強時間を保存
 
-      // すべての学習ログを走査し、教材ごとの学習時間を日付別に集計
+      // すべての学習ログを走査し、日付ごとの総学習時間を集計
       for (var logDoc in snapshot.docs) {
         String date = logDoc['date']; // 日付
-        String materialId = logDoc.reference.parent.parent!.id; // 教材のID
-        double studyTime = logDoc['studyTime'].toDouble();
-        final parentRef = logDoc.reference.parent.parent!;
-        final parentDoc = await parentRef.get();
-        print(parentDoc.get('title'));
+        double studyTime = logDoc['studyTime'].toDouble(); // 勉強時間
 
-        materialIds.add(materialId); // 教材IDを追加
-
-        // ここで materialId から subjectId を取得し、subjectId に含まれる color を取得する
-        if (!materialColors.containsKey(materialId)) {
-          // materialId から subjectId を取得
-          String? subjectId = await _getSubjectIdFromMaterial(materialId);
-
-          if (subjectId != null) {
-            // subjectId から color を取得
-            Color? color = await _getSubjectColor(subjectId);
-            materialColors[materialId] = color ?? Colors.grey;
-          } else {
-            materialColors[materialId] = Colors.grey; // subjectId が見つからない場合はグレー
-          }
+        // 日付ごとの勉強時間を集計
+        if (!dailyStudyTime.containsKey(date)) {
+          dailyStudyTime[date] = 0.0;
         }
-
-        // 日付ごとの学習時間を集計
-        if (!dailyStudyTimeByMaterial.containsKey(date)) {
-          dailyStudyTimeByMaterial[date] = {};
-        }
-        dailyStudyTimeByMaterial[date]![materialId] =
-            (dailyStudyTimeByMaterial[date]?[materialId] ?? 0.0) + studyTime;
+        dailyStudyTime[date] =
+            dailyStudyTime[date]! + studyTime; // 日付ごとの勉強時間を加算
       }
 
       // グラフのデータを生成
@@ -379,32 +369,23 @@ class _PageFourState extends State<PageFour> {
       for (int i = 0; i < 7; i++) {
         DateTime date = startDate.add(Duration(days: i));
         String dateString = DateFormat('yyyy-MM-dd').format(date); // 日付のフォーマット
-        List<BarChartRodData> rods = [];
 
-        if (dailyStudyTimeByMaterial.containsKey(dateString)) {
-          double startY = 0;
-          // 各教材ごとの棒グラフを作成
-          materialIds.forEach((materialId) {
-            double studyTime =
-                dailyStudyTimeByMaterial[dateString]?[materialId] ?? 0.0;
-            if (studyTime > 0) {
-              rods.add(
-                BarChartRodData(
-                  toY: studyTime,
-                  width: 22,
-                  borderRadius: BorderRadius.circular(4),
-                  color: materialColors[materialId] ?? Colors.grey, // カラーを適用
-                ),
-              );
-            }
-          });
-        }
+        // その日の合計勉強時間を取得、ない場合は0
+        double totalStudyTime = dailyStudyTime[dateString] ?? 0.0;
+        int timestamp = date.millisecondsSinceEpoch; // 日付をUNIXタイムスタンプに変換
 
-        // 棒グラフのグループを追加
+        // 1本の棒グラフとして追加
         barGroups.add(
           BarChartGroupData(
-            x: date.millisecondsSinceEpoch,
-            barRods: rods,
+            x: timestamp, // X軸の位置を日付に対応
+            barRods: [
+              BarChartRodData(
+                toY: totalStudyTime, // 合計勉強時間をY軸に反映
+                width: 22,
+                borderRadius: BorderRadius.circular(4), // 必要に応じて角を丸める
+                color: Colors.blue, // 色を指定
+              ),
+            ],
           ),
         );
       }
@@ -508,5 +489,178 @@ class _PageFourState extends State<PageFour> {
     int hours = minutes ~/ 60;
     int remainingMinutes = (minutes % 60).toInt();
     return "${hours}時間${remainingMinutes}";
+  }
+}
+
+// class SecondPage extends StatefulWidget {
+//   @override
+//   _SecondPageState createState() => _SecondPageState();
+// }
+
+// class _SecondPageState extends State<SecondPage> {
+//   String message = '円グラフの詳細';
+
+//   // メッセージを更新するメソッド
+//   void updateMessage() {
+//     setState(() {
+//       message = 'メッセージが変更されました！';
+//     });
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: Text('別のページ'),
+//       ),
+//       body: Center(
+//         child: Column(
+//           mainAxisAlignment: MainAxisAlignment.center,
+//           children: [
+//             Text(
+//               message,
+//               style: TextStyle(fontSize: 24),
+//             ),
+//             SizedBox(height: 20), // 間隔を空けるためのウィジェット
+//             ElevatedButton(
+//               onPressed: updateMessage, // ボタンを押した時にメッセージを更新
+//               child: Text('メッセージを変更'),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }
+
+// class SecondPage extends StatefulWidget {
+//   @override
+//   _SecondPageState createState() => _SecondPageState();
+// }
+
+// class _SecondPageState extends State<SecondPage> {
+//   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+//   Map<String, Map<String, double>> subjectStudyTime = {}; // 日付ごとの科目別勉強時間を保存
+//   List<String> sortedDates = []; // 日付をソートして格納するリスト
+
+class SecondPage extends StatefulWidget {
+  @override
+  _SecondPageState createState() => _SecondPageState();
+}
+
+class _SecondPageState extends State<SecondPage> {
+  Map<String, Map<String, double>> studyDataByDate = {};
+
+  @override
+  void initState() {
+    super.initState();
+    fetchStudyData();
+  }
+
+  Future<void> fetchStudyData() async {
+    // Firebaseからデータを取得
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+    QuerySnapshot snapshot = await firestore.collection('subjects').get();
+
+    Map<String, Map<String, double>> tempData = {};
+
+    for (var doc in snapshot.docs) {
+      String subjectName = doc['name'];
+
+      // 各サブコレクションからstudyLogsを取得
+      QuerySnapshot materialsSnapshot =
+          await doc.reference.collection('materials').get();
+      for (var materialDoc in materialsSnapshot.docs) {
+        QuerySnapshot studyLogsSnapshot =
+            await materialDoc.reference.collection('studyLogs').get();
+        for (var logDoc in studyLogsSnapshot.docs) {
+          String date = logDoc['date'];
+          double studyTime = logDoc['studyTime'];
+
+          // 日付ごとの勉強時間を集計
+          if (!tempData.containsKey(date)) {
+            tempData[date] = {};
+          }
+          if (!tempData[date]!.containsKey(subjectName)) {
+            tempData[date]![subjectName] = 0.0;
+          }
+          tempData[date]![subjectName] =
+              tempData[date]![subjectName]! + studyTime;
+        }
+      }
+    }
+
+    setState(() {
+      studyDataByDate = tempData;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 日付順にソート
+    List<String> sortedDates = studyDataByDate.keys.toList()
+      ..sort((a, b) => b.compareTo(a));
+
+    return Scaffold(
+      appBar: AppBar(title: Text('日にちごとの勉強時間')),
+      body: studyDataByDate.isEmpty
+          ? Center(child: CircularProgressIndicator())
+          : ListView.builder(
+              itemCount: sortedDates.length,
+              itemBuilder: (context, index) {
+                String date = sortedDates[index];
+                Map<String, double> subjectData = studyDataByDate[date]!;
+                double totalStudyTime = subjectData.values
+                    .fold(0, (sum, time) => sum + time); // 合計時間を計算
+
+                return Column(
+                  children: [
+                    Text(
+                      date, // 日付を表示
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      '合計勉強時間: ${totalStudyTime.toStringAsFixed(0)}分', // 合計時間を表示
+                      style: TextStyle(fontSize: 16, color: Colors.black87),
+                    ),
+                    SizedBox(
+                        height: 200,
+                        child: PieChart(createPieChartData(subjectData))),
+                    SizedBox(height: 20), // スペース
+                  ],
+                );
+              },
+            ),
+    );
+  }
+
+  PieChartData createPieChartData(Map<String, double> subjectData) {
+    return PieChartData(
+      sections: subjectData.entries.map((entry) {
+        return PieChartSectionData(
+          color: getColorForSubject(entry.key),
+          value: entry.value,
+          title: '${entry.key}\n${entry.value}分',
+          radius: 100,
+          titleStyle: TextStyle(
+              fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+        );
+      }).toList(),
+    );
+  }
+
+  Color getColorForSubject(String subject) {
+    // 科目に応じた色を返す（適当に設定）
+    switch (subject) {
+      case '理科':
+        return Colors.blue;
+      case '数学':
+        return Colors.green;
+      case '国語':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
   }
 }

@@ -7,8 +7,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Flutterの初期化
-  await Firebase.initializeApp();
-  await dotenv.load(fileName: ".env"); // Firebaseの初期化
+  await Firebase.initializeApp(); // Firebaseの初期化
+  await dotenv.load(fileName: ".env");
   runApp(MyApp());
 }
 
