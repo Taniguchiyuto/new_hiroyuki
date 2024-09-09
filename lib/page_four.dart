@@ -549,7 +549,7 @@ class SecondPage extends StatefulWidget {
 }
 
 class _SecondPageState extends State<SecondPage> {
-  Map<String, Map<String, double>> studyDataByDate = {};
+  Map<String, Map<String, Map<String, dynamic>>> studyDataByDate = {};
 
   @override
   void initState() {
@@ -562,10 +562,12 @@ class _SecondPageState extends State<SecondPage> {
     FirebaseFirestore firestore = FirebaseFirestore.instance;
     QuerySnapshot snapshot = await firestore.collection('subjects').get();
 
-    Map<String, Map<String, double>> tempData = {};
+    Map<String, Map<String, Map<String, dynamic>>> tempData = {};
 
     for (var doc in snapshot.docs) {
       String subjectName = doc['name'];
+      int colorValue = doc['color']; // Firestoreのcolorフィールドを取得
+      Color subjectColor = Color(colorValue); // Colorオブジェクトに変換
 
       // 各サブコレクションからstudyLogsを取得
       QuerySnapshot materialsSnapshot =
@@ -579,13 +581,17 @@ class _SecondPageState extends State<SecondPage> {
 
           // 日付ごとの勉強時間を集計
           if (!tempData.containsKey(date)) {
-            tempData[date] = {};
+            tempData[date] = {}; // 日付が存在しない場合は初期化
           }
           if (!tempData[date]!.containsKey(subjectName)) {
-            tempData[date]![subjectName] = 0.0;
+            tempData[date]![subjectName] = {
+              'studyTime': 0.0,
+              'color': subjectColor // 初期値と色を設定
+            };
           }
-          tempData[date]![subjectName] =
-              tempData[date]![subjectName]! + studyTime;
+
+          // 'studyTime' の加算
+          tempData[date]![subjectName]!['studyTime'] += studyTime;
         }
       }
     }
@@ -609,9 +615,10 @@ class _SecondPageState extends State<SecondPage> {
               itemCount: sortedDates.length,
               itemBuilder: (context, index) {
                 String date = sortedDates[index];
-                Map<String, double> subjectData = studyDataByDate[date]!;
+                Map<String, Map<String, dynamic>> subjectData =
+                    studyDataByDate[date]!;
                 double totalStudyTime = subjectData.values
-                    .fold(0, (sum, time) => sum + time); // 合計時間を計算
+                    .fold(0, (sum, data) => sum + data['studyTime']); // 合計時間を計算
 
                 return Column(
                   children: [
@@ -635,13 +642,18 @@ class _SecondPageState extends State<SecondPage> {
     );
   }
 
-  PieChartData createPieChartData(Map<String, double> subjectData) {
+  PieChartData createPieChartData(
+      Map<String, Map<String, dynamic>> subjectData) {
     return PieChartData(
       sections: subjectData.entries.map((entry) {
+        double studyTime = entry.value['studyTime']; // 勉強時間
+        Color color = entry.value['color']; // Firestoreから取得した色
+
         return PieChartSectionData(
-          color: getColorForSubject(entry.key),
-          value: entry.value,
-          title: '${entry.key}\n${entry.value}分',
+          color: color, // Firestoreから取得した色を使用
+          value: studyTime,
+          title:
+              '${entry.key}\n${studyTime.toStringAsFixed(0)}分', // 科目名と勉強時間を表示
           radius: 100,
           titleStyle: TextStyle(
               fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
@@ -650,17 +662,18 @@ class _SecondPageState extends State<SecondPage> {
     );
   }
 
-  Color getColorForSubject(String subject) {
-    // 科目に応じた色を返す（適当に設定）
-    switch (subject) {
-      case '理科':
-        return Colors.blue;
-      case '数学':
-        return Colors.green;
-      case '国語':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
+  // Firestoreの色情報を使うためにこのメソッドは不要
+  // Color getColorForSubject(String subject) {
+  //   // 科目に応じた色を返す（適当に設定）
+  //   switch (subject) {
+  //     case '理科':
+  //       return Colors.blue;
+  //     case '数学':
+  //       return Colors.green;
+  //     case '国語':
+  //       return Colors.red;
+  //     default:
+  //       return Colors.grey;
+  //   }
+  // }
 }

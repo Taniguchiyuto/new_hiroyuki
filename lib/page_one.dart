@@ -12,6 +12,25 @@ class _PageOneState extends State<PageOne> {
   DateTime targetDate = DateTime(2024, 12, 31); // デフォルトのターゲット日
   String formattedTargetDate = "設定されていません"; // 初期状態
 
+  // ユーザーIDを保存する変数
+  String uid = "未取得"; // 初期状態では未取得
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUid(); // 初期化時にUIDを取得
+  }
+
+  // UIDを取得するメソッド
+  Future<void> _loadUid() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      setState(() {
+        uid = user.uid; // UIDを取得して設定
+      });
+    }
+  }
+
   // カウントダウンのロジック
   Duration _calculateCountdown() {
     DateTime now = DateTime.now(); // 現在の日付
@@ -41,7 +60,7 @@ class _PageOneState extends State<PageOne> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(""),
+        title: Text("ホーム"),
         actions: [
           IconButton(
             icon: Icon(Icons.logout),
@@ -65,6 +84,11 @@ class _PageOneState extends State<PageOne> {
             Text(
               "Welcome to the Home Page!",
               style: TextStyle(fontSize: 24),
+            ),
+            SizedBox(height: 20),
+            Text(
+              "あなたのUID: $uid", // UIDを表示
+              style: TextStyle(fontSize: 16, color: Colors.blue),
             ),
             SizedBox(height: 40),
             Text(

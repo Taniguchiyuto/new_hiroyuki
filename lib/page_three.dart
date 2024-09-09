@@ -5,7 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class PageThree extends StatelessWidget {
   final List<ChatItem> chatItems = [
-    ChatItem("ひろゆき", "それってあなたの感想ですよね", "14:57", "assets/images/avatar1.png"),
+    ChatItem("質問対応ボット", "わからない問題に解答します。", "14:57", "assets/images/avatar1.png"),
     ChatItem("Alan", "", "昨日", "assets/images/avatar2.png"),
     ChatItem("バキ童", "バキバキ童貞です。", "金曜日", "assets/images/avatar3.png"),
     ChatItem("フーミン", "", "金曜日", "assets/images/avatar4.png"),
