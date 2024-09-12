@@ -49,21 +49,24 @@ class _AuthScreenState extends State<AuthScreen> {
             .doc(userCredential.user!.uid)
             .get();
 
-        // ドキュメントが存在しない、または「username」フィールドが存在しない、もしくは空白の場合
+        // ドキュメントが存在しない、またはusername、targetフィールドがnullもしくは空白の場合
         if (!userInfo.exists ||
             userInfo['username'] == null ||
-            userInfo['username'].toString().isEmpty) {
+            userInfo['username'].toString().isEmpty ||
+            userInfo['target'] == null ||
+            userInfo['target'].toString().isEmpty) {
+          // usernameまたはtargetがnullの場合は、ユーザー名や目標入力ページに遷移
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (context) => UserInfoInputPage(
                 user: userCredential.user,
-                message: "ユーザー名を適当にでもいいので入力してもらってもいいですか？",
+                message: "ユーザー名と目標を入力してください",
               ),
             ),
           );
         } else {
-          // ユーザー情報が存在し、usernameフィールドが空でない場合、ホームページに遷移
+          // ユーザー名と目標が存在すればホームページに遷移
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => HomePage()),

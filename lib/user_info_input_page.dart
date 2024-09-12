@@ -16,6 +16,8 @@ class UserInfoInputPage extends StatefulWidget {
 class _UserInfoInputPageState extends State<UserInfoInputPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _targetController =
+      TextEditingController(); // target入力用コントローラ
 
   @override
   void initState() {
@@ -31,15 +33,19 @@ class _UserInfoInputPageState extends State<UserInfoInputPage> {
       if (userInfo.exists) {
         setState(() {
           _usernameController.text = userInfo['username'] ?? '';
+          _targetController.text = userInfo['target'] ?? ''; // targetをセット
         });
       }
     }
   }
 
   Future<void> _saveUserInfo() async {
-    if (widget.user != null && _usernameController.text.isNotEmpty) {
+    if (widget.user != null &&
+        _usernameController.text.isNotEmpty &&
+        _targetController.text.isNotEmpty) {
       await _firestore.collection('users').doc(widget.user!.uid).set({
         'username': _usernameController.text,
+        'target': _targetController.text, // targetも保存
         'email': widget.user!.email,
       });
 
@@ -51,7 +57,7 @@ class _UserInfoInputPageState extends State<UserInfoInputPage> {
     } else {
       // 空のフィールドがある場合は警告を表示
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('ユーザー名を入力してください')),
+        SnackBar(content: Text('ユーザー名と目標を入力してください')),
       );
     }
   }
@@ -80,6 +86,11 @@ class _UserInfoInputPageState extends State<UserInfoInputPage> {
               decoration: InputDecoration(labelText: 'Username'),
             ),
             SizedBox(height: 20),
+            TextField(
+              controller: _targetController, // target用のテキストフィールド
+              decoration: InputDecoration(labelText: 'Target'),
+            ),
+            SizedBox(height: 20),
             ElevatedButton(onPressed: _saveUserInfo, child: Text('Save')),
           ],
         ),
@@ -90,6 +101,7 @@ class _UserInfoInputPageState extends State<UserInfoInputPage> {
   @override
   void dispose() {
     _usernameController.dispose();
+    _targetController.dispose(); // targetコントローラの破棄
     super.dispose();
   }
 }
