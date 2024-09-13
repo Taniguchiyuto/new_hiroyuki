@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // 日付フォーマット用のパッケージをインポート
+import 'package:firebase_auth/firebase_auth.dart'; // FirebaseAuthをインポート
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PageOne extends StatefulWidget {
   @override
@@ -7,6 +9,10 @@ class PageOne extends StatefulWidget {
 }
 
 class _StudyMindUIState extends State<PageOne> {
+  String target = '目標未設定';
+  String studyRank = 'A';
+  String lifeRank = 'B';
+  String gradeRank = 'A';
   String comment = "評価のポイント\n" +
       "1. 成績（B+）: 成績自体は十分に優秀で、目標に向けて着実に進んでいる状態です。\n" +
       "2. 学習（B+）: 学習習慣も良好で、しっかりとした時間と集中力が確保できている様子です。\n" +
@@ -20,6 +26,43 @@ class _StudyMindUIState extends State<PageOne> {
 
   String overallEvaluation =
       "総合評価はSです。学習、生活、成績の各分野において全体的に優れており、特に学習と成績が高い評価を受けています。";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTarget();
+  }
+
+  // Firestoreから現在のユーザーのtargetを取得するメソッド
+  Future<void> _loadTarget() async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (userDoc.exists && userDoc.data() != null) {
+          var userData = userDoc.data() as Map<String, dynamic>;
+          if (userData.containsKey('target')) {
+            setState(() {
+              target = userData['target']; // 取得したtargetをセット
+            });
+            print('取得した目標: $target'); // 取得した目標をログに出力
+          } else {
+            print('targetフィールドが存在しません');
+          }
+        } else {
+          print('ユーザー情報が存在しません');
+        }
+      } else {
+        print('ユーザーがログインしていません');
+      }
+    } catch (e) {
+      print('エラーが発生しました: $e');
+    }
+  }
 
   bool operator ==(Object other) {
     // TODO: implement ==
@@ -65,7 +108,7 @@ class _StudyMindUIState extends State<PageOne> {
           children: [
             // 目標表示
             Text(
-              '目標: 司法試験合格',
+              '目標: $target',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -117,11 +160,14 @@ class _StudyMindUIState extends State<PageOne> {
                   flex: 2,
                   child: Column(
                     children: [
-                      _buildEvaluationBox("学習", "A", Colors.green.shade200),
+                      _buildEvaluationBox(
+                          "学習習慣", studyRank, Colors.green.shade200),
                       SizedBox(height: 8),
-                      _buildEvaluationBox("生活", "B", Colors.orange.shade200),
+                      _buildEvaluationBox(
+                          "生活習慣", lifeRank, Colors.orange.shade200),
                       SizedBox(height: 8),
-                      _buildEvaluationBox("成績", "A", Colors.blue.shade200),
+                      _buildEvaluationBox(
+                          "成績", gradeRank, Colors.blue.shade200),
                     ],
                   ),
                 ),
@@ -167,8 +213,9 @@ class _StudyMindUIState extends State<PageOne> {
                 children: [
                   // 総合評価タイルの追加
                   _buildExpansionTile("総合評価", "総合評価に関する内容", overallEvaluation),
-                  _buildExpansionTile("学習", "学習に関する内容", comment),
-                  _buildExpansionTile("生活", "生活に関する内容", "生活の詳細な内容がここに表示されます"),
+                  _buildExpansionTile("学習習慣", "学習習慣に関する内容", comment),
+                  _buildExpansionTile(
+                      "生活習慣", "生活習慣に関する内容", "生活の詳細な内容がここに表示されます"),
                   _buildExpansionTile("成績", "成績に関する内容", "成績に関する詳細がここに表示されます"),
                 ],
               ),

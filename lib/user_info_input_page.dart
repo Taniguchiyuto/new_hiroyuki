@@ -18,7 +18,8 @@ class _UserInfoInputPageState extends State<UserInfoInputPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _targetController =
       TextEditingController(); // target入力用コントローラ
-
+  final TextEditingController _ageController = TextEditingController();
+  final TextEditingController _occupationCotroller = TextEditingController();
   @override
   void initState() {
     super.initState();
@@ -34,6 +35,8 @@ class _UserInfoInputPageState extends State<UserInfoInputPage> {
         setState(() {
           _usernameController.text = userInfo['username'] ?? '';
           _targetController.text = userInfo['target'] ?? ''; // targetをセット
+          _ageController.text = userInfo['age']?.toString() ?? '';
+          _occupationCotroller.text = userInfo['occupation'] ?? '';
         });
       }
     }
@@ -42,11 +45,15 @@ class _UserInfoInputPageState extends State<UserInfoInputPage> {
   Future<void> _saveUserInfo() async {
     if (widget.user != null &&
         _usernameController.text.isNotEmpty &&
-        _targetController.text.isNotEmpty) {
+        _targetController.text.isNotEmpty &&
+        _ageController.text.isNotEmpty &&
+        _occupationCotroller.text.isNotEmpty) {
       await _firestore.collection('users').doc(widget.user!.uid).set({
         'username': _usernameController.text,
         'target': _targetController.text, // targetも保存
         'email': widget.user!.email,
+        'occupation': _occupationCotroller.text,
+        'age': int.parse(_ageController.text),
       });
 
       // 保存後にホームページに遷移
@@ -83,12 +90,23 @@ class _UserInfoInputPageState extends State<UserInfoInputPage> {
             ],
             TextField(
               controller: _usernameController,
-              decoration: InputDecoration(labelText: 'Username'),
+              decoration: InputDecoration(labelText: 'ユーザー名'),
             ),
             SizedBox(height: 20),
             TextField(
               controller: _targetController, // target用のテキストフィールド
-              decoration: InputDecoration(labelText: 'Target'),
+              decoration: InputDecoration(labelText: '目標'),
+            ),
+            SizedBox(height: 20),
+            TextField(
+              controller: _ageController,
+              decoration: InputDecoration(labelText: '年齢'),
+              keyboardType: TextInputType.number,
+            ),
+            SizedBox(height: 20),
+            TextField(
+              controller: _occupationCotroller,
+              decoration: InputDecoration(labelText: '職業'),
             ),
             SizedBox(height: 20),
             ElevatedButton(onPressed: _saveUserInfo, child: Text('Save')),
@@ -102,6 +120,8 @@ class _UserInfoInputPageState extends State<UserInfoInputPage> {
   void dispose() {
     _usernameController.dispose();
     _targetController.dispose(); // targetコントローラの破棄
+    _ageController.dispose();
+    _occupationCotroller.dispose();
     super.dispose();
   }
 }
