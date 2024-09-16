@@ -31,6 +31,7 @@ class _StudyMindUIState extends State<PageOne> {
   void initState() {
     super.initState();
     _loadTarget();
+    _getStudyRecords();
   }
 
   // Firestoreから現在のユーザーのtargetを取得するメソッド
@@ -63,6 +64,134 @@ class _StudyMindUIState extends State<PageOne> {
       print('エラーが発生しました: $e');
     }
   }
+
+  Future<List<Map<String, dynamic>>> _getStudyRecords() async {
+    List<Map<String, dynamic>> studyRecords = [];
+
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        print('ユーザーID : ${user.uid}');
+      } else {
+        print('ユーザーがログインしていません');
+        return studyRecords; // ユーザーがいない場合も空のリストを返す
+      }
+
+      if (user != null) {
+        // 現在の日付を取得し、前日から1週間前までの範囲を計算
+        DateFormat dateFormat = DateFormat('yyyy-MM-dd');
+
+        DateTime today = DateTime.now();
+        DateTime endDate = today.subtract(Duration(days: 1)); // 前日
+        DateTime startDate = endDate.subtract(Duration(days: 6));
+        String formattedStartDate = dateFormat.format(startDate);
+        String formattedEndDate = dateFormat.format(endDate); // 1週間前まで
+        print(
+            'startDate: $formattedStartDate, endDate: $formattedEndDate'); // ここで日付範囲を確認
+
+        // Firestoreクエリ：ユーザーIDに基づいてsubjectsを取得
+        QuerySnapshot subjectSnapshot = await FirebaseFirestore.instance
+            .collection('subjects')
+            .where('uid', isEqualTo: user.uid) // subjectsコレクションをUIDでフィルタリング
+            .get();
+
+        if (subjectSnapshot.docs.isEmpty) {
+          print('科目データが見つかりません');
+        } else {
+          print('取得した科目データ : ${subjectSnapshot.docs.length}');
+        }
+
+        // 各subjectに関連するstudyLogsを取得
+        for (var subjectDoc in subjectSnapshot.docs) {
+          // 科目名の取得
+          String subjectName = subjectDoc['name'];
+          print(subjectDoc.id);
+
+          QuerySnapshot materialsSnapshot = await FirebaseFirestore.instance
+              .collection('subjects')
+              .doc(subjectDoc.id)
+              .collection('materials')
+              .get();
+          print(' うんち${materialsSnapshot.docs.length}');
+
+          for (var materialDoc in materialsSnapshot.docs) {
+            //教材ごとのstudyLogsを取得
+            QuerySnapshot studyLogSnapshot = await FirebaseFirestore.instance
+                .collection('subjects')
+                .doc(subjectDoc.id)
+                .collection('materials')
+                .doc(materialDoc.id) //ここはmaterialDoc.idを使います
+                .collection('studyLogs')
+                .where('date', isGreaterThanOrEqualTo: formattedStartDate)
+                .where('date', isLessThanOrEqualTo: formattedEndDate)
+                .get();
+
+            print('取得したstudyLogs: ${studyLogSnapshot.docs.length}件');
+
+            // studyLogsごとの情報をリストに追加
+            for (var studyLogDoc in studyLogSnapshot.docs) {
+              Map<String, dynamic> studyLog =
+                  studyLogDoc.data() as Map<String, dynamic>;
+
+              print('学習記録の内容: ${studyLog.toString()}');
+
+              studyRecords.add({
+                '勉強した科目': subjectName,
+                '勉強時間': studyLog['studyTime'],
+                '勉強した教材名': materialDoc['title'],
+                '勉強した日にち': studyLog['date']
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('エラーが発生しました: $e');
+    }
+    print('最終的な学習記録: $studyRecords');
+    return studyRecords; // 最後に必ずstudyRecordsを返す
+  }
+
+  //         if (studyLogSnapshot.docs.isEmpty) {
+  //           print('学習記録が見つかり');
+  //         } else {
+  //           print('取得した学習記録: ${studyLogSnapshot.docs.length}件');
+  //         }
+
+  //         // studyLogsごとの情報をリストに追加
+  //         for (var studyLogDoc in studyLogSnapshot.docs) {
+  //           Map<String, dynamic> studyLog =
+  //               studyLogDoc.data() as Map<String, dynamic>;
+
+  //           // 教材名の取得（subjectsサブコレクション内のmaterialsから、titleを使用）
+  //           QuerySnapshot materialsSnapshot = await FirebaseFirestore.instance
+  //               .collection('subjects')
+  //               .doc(subjectDoc.id)
+  //               .collection('materials')
+  //               .get();
+
+  //           List<String> materialTitles =
+  //               materialsSnapshot.docs.map((materialDoc) {
+  //             return materialDoc['title'] as String; // 'title' を String としてキャスト
+  //           }).toList();
+
+  //           // 取得したデータをリストに追加
+  //           studyRecords.add({
+  //             'subject': subjectName, // 科目名
+  //             'studyTime': studyLog['studyTime'], // 学習時間
+  //             'materials': materialTitles, // 教材名のリスト
+  //             'date': studyLog['date'] // 作成日をdateフィールドから取得
+  //           });
+  //         }
+  //       }
+  //       print('取得した学習記録: $studyRecords');
+  //     }
+  //   } catch (e) {
+  //     print('エラーが発生しました: $e');
+  //   }
+
+  //   return studyRecords;
+  // }
 
   bool operator ==(Object other) {
     // TODO: implement ==
