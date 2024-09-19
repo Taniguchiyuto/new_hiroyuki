@@ -43,4 +43,3 @@ app.*.map.json
 /android/app/release
 # APIキーなど機密情報を含むファイルを無視する
 .env
-ko
