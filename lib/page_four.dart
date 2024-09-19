@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:intl/intl.dart';
 
 class PageFour extends StatefulWidget {
   @override
@@ -217,6 +216,8 @@ class _PageFourState extends State<PageFour> {
     );
   }
 
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   Widget _buildCountdownSection() {
     String countdownText = "設定されていません";
 
@@ -267,7 +268,15 @@ class _PageFourState extends State<PageFour> {
     DateTime now = DateTime.now();
     String today = DateFormat('yyyy-MM-dd').format(now);
 
-    return _firestore.collectionGroup('studyLogs').snapshots().map((snapshot) {
+    // 現在のユーザーのUIDを取得
+    User? user = _auth.currentUser;
+    String uid = user?.uid ?? ''; // UIDが取得できなかった場合の対策も含める
+
+    return _firestore
+        .collectionGroup('studyLogs')
+        .where('uid', isEqualTo: uid)
+        .snapshots()
+        .map((snapshot) {
       double todayStudyTime = 0;
 
       for (var logDoc in snapshot.docs) {
@@ -287,7 +296,14 @@ class _PageFourState extends State<PageFour> {
     DateTime now = DateTime.now();
     String thisMonth = DateFormat('yyyy-MM').format(now);
 
-    return _firestore.collectionGroup('studyLogs').snapshots().map((snapshot) {
+    // 現在のユーザーのUIDを取得
+    User? user = _auth.currentUser;
+    String uid = user?.uid ?? ''; // UIDが取得できなかった場合の対策も含める
+    return _firestore
+        .collectionGroup('studyLogs')
+        .where('uid', isEqualTo: uid)
+        .snapshots()
+        .map((snapshot) {
       double thisMonthStudyTime = 0;
 
       for (var logDoc in snapshot.docs) {
@@ -304,7 +320,14 @@ class _PageFourState extends State<PageFour> {
   }
 
   Stream<double> _getTotalStudyTimeStream() {
-    return _firestore.collectionGroup('studyLogs').snapshots().map((snapshot) {
+    // 現在のユーザーのUIDを取得
+    User? user = _auth.currentUser;
+    String uid = user?.uid ?? ''; // UIDが取得できなかった場合の対策も含める
+    return _firestore
+        .collectionGroup('studyLogs')
+        .where('uid', isEqualTo: uid)
+        .snapshots()
+        .map((snapshot) {
       double totalStudyTime = 0;
 
       for (var logDoc in snapshot.docs) {
