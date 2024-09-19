@@ -265,16 +265,16 @@ class _PageFourState extends State<PageFour> {
   }
 
   Stream<double> _getTodayStudyTimeStream() {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return Stream.value(0.0); // ユーザーがログインしていない場合は0を返す
+    }
+
     DateTime now = DateTime.now();
     String today = DateFormat('yyyy-MM-dd').format(now);
 
-    // 現在のユーザーのUIDを取得
-    User? user = _auth.currentUser;
-    String uid = user?.uid ?? ''; // UIDが取得できなかった場合の対策も含める
-
-    return _firestore
+    return FirebaseFirestore.instance
         .collectionGroup('studyLogs')
-        .where('uid', isEqualTo: uid)
         .snapshots()
         .map((snapshot) {
       double todayStudyTime = 0;
@@ -282,8 +282,10 @@ class _PageFourState extends State<PageFour> {
       for (var logDoc in snapshot.docs) {
         String date = logDoc['date'];
         double studyTime = logDoc['studyTime'].toDouble();
+        String? uid = logDoc['uid']; // uidがnullの可能性を考慮して?を付ける
 
-        if (date == today) {
+        // 今日の日付と一致し、かつuidがnullでなく、現在のユーザーと一致する場合に勉強時間を加算
+        if (date == today && uid != null && uid == user.uid) {
           todayStudyTime += studyTime;
         }
       }
@@ -298,19 +300,22 @@ class _PageFourState extends State<PageFour> {
 
     // 現在のユーザーのUIDを取得
     User? user = _auth.currentUser;
-    String uid = user?.uid ?? ''; // UIDが取得できなかった場合の対策も含める
-    return _firestore
-        .collectionGroup('studyLogs')
-        .where('uid', isEqualTo: uid)
-        .snapshots()
-        .map((snapshot) {
+    if (user == null) {
+      return Stream.value(0.0); // ユーザーが存在しない場合は 0.0 を返す
+    }
+
+    String uid = user.uid;
+
+    return _firestore.collectionGroup('studyLogs').snapshots().map((snapshot) {
       double thisMonthStudyTime = 0;
 
       for (var logDoc in snapshot.docs) {
+        String logUid = logDoc['uid']; // logDocからUIDを取得
         String date = logDoc['date'];
         double studyTime = logDoc['studyTime'].toDouble();
 
-        if (date.startsWith(thisMonth)) {
+        // 現在のユーザーのUIDと一致するか確認し、かつ今月のデータであるか確認
+        if (logUid == uid && date.startsWith(thisMonth)) {
           thisMonthStudyTime += studyTime;
         }
       }
@@ -322,17 +327,23 @@ class _PageFourState extends State<PageFour> {
   Stream<double> _getTotalStudyTimeStream() {
     // 現在のユーザーのUIDを取得
     User? user = _auth.currentUser;
-    String uid = user?.uid ?? ''; // UIDが取得できなかった場合の対策も含める
-    return _firestore
-        .collectionGroup('studyLogs')
-        .where('uid', isEqualTo: uid)
-        .snapshots()
-        .map((snapshot) {
+    if (user == null) {
+      return Stream.value(0.0); // ユーザーが存在しない場合は 0.0 を返す
+    }
+
+    String uid = user.uid;
+
+    return _firestore.collectionGroup('studyLogs').snapshots().map((snapshot) {
       double totalStudyTime = 0;
 
       for (var logDoc in snapshot.docs) {
+        String logUid = logDoc['uid']; // logDocからUIDを取得
         double studyTime = logDoc['studyTime'].toDouble();
-        totalStudyTime += studyTime;
+
+        // 現在のユーザーのUIDと一致する場合のみ集計
+        if (logUid == uid) {
+          totalStudyTime += studyTime;
+        }
       }
 
       return totalStudyTime;
@@ -366,6 +377,8 @@ class _PageFourState extends State<PageFour> {
   Stream<List<BarChartGroupData>> _getBarChartStream() {
     DateTime now = DateTime.now();
     DateTime startDate = now.subtract(Duration(days: 6)); // 過去7日間を取得
+    User? user = _auth.currentUser;
+    String uid = user?.uid ?? ''; // UIDが取得できなかった場合の対策も含める
 
     return _firestore
         .collectionGroup('studyLogs')
@@ -377,13 +390,16 @@ class _PageFourState extends State<PageFour> {
       for (var logDoc in snapshot.docs) {
         String date = logDoc['date']; // 日付
         double studyTime = logDoc['studyTime'].toDouble(); // 勉強時間
-
-        // 日付ごとの勉強時間を集計
-        if (!dailyStudyTime.containsKey(date)) {
-          dailyStudyTime[date] = 0.0;
+        String logUid = logDoc['uid']; //各ログのUIDを取得
+        // UIDが一致する場合のみ勉強時間を集計
+        if (logUid == uid) {
+          // 日付ごとの勉強時間を集計
+          if (!dailyStudyTime.containsKey(date)) {
+            dailyStudyTime[date] = 0.0;
+          }
+          dailyStudyTime[date] =
+              dailyStudyTime[date]! + studyTime; // 日付ごとの勉強時間を加算
         }
-        dailyStudyTime[date] =
-            dailyStudyTime[date]! + studyTime; // 日付ごとの勉強時間を加算
       }
 
       // グラフのデータを生成
@@ -583,6 +599,13 @@ class _SecondPageState extends State<SecondPage> {
   Future<void> fetchStudyData() async {
     // Firebaseからデータを取得
     FirebaseFirestore firestore = FirebaseFirestore.instance;
+    User? user = FirebaseAuth.instance.currentUser; // 現在のユーザーを取得
+    if (user == null) {
+      print('ログインしているユーザーがいません');
+      return; // ユーザーがいない場合は処理を終了
+    }
+    String uid = user.uid; // 現在のユーザーのUIDを取得
+
     QuerySnapshot snapshot = await firestore.collection('subjects').get();
 
     Map<String, Map<String, Map<String, dynamic>>> tempData = {};
@@ -599,22 +622,27 @@ class _SecondPageState extends State<SecondPage> {
         QuerySnapshot studyLogsSnapshot =
             await materialDoc.reference.collection('studyLogs').get();
         for (var logDoc in studyLogsSnapshot.docs) {
-          String date = logDoc['date'];
-          double studyTime = logDoc['studyTime'];
+          String date = logDoc['date']; // 日付
+          double studyTime = logDoc['studyTime']; // 勉強時間
+          String logUid = logDoc['uid']; // UIDを取得
 
-          // 日付ごとの勉強時間を集計
-          if (!tempData.containsKey(date)) {
-            tempData[date] = {}; // 日付が存在しない場合は初期化
-          }
-          if (!tempData[date]!.containsKey(subjectName)) {
-            tempData[date]![subjectName] = {
-              'studyTime': 0.0,
-              'color': subjectColor // 初期値と色を設定
-            };
-          }
+          // UIDが現在のユーザーのUIDと一致する場合のみ処理を行う
+          if (logUid == uid) {
+            // 日付ごとの勉強時間を集計
+            if (!tempData.containsKey(date)) {
+              tempData[date] = {}; // 日付が存在しない場合は初期化
+            }
 
-          // 'studyTime' の加算
-          tempData[date]![subjectName]!['studyTime'] += studyTime;
+            if (!tempData[date]!.containsKey(subjectName)) {
+              tempData[date]![subjectName] = {
+                'studyTime': 0.0,
+                'color': subjectColor // 初期値と色を設定
+              };
+            }
+
+            // 勉強時間を追加
+            tempData[date]![subjectName]!['studyTime'] += studyTime;
+          }
         }
       }
     }
