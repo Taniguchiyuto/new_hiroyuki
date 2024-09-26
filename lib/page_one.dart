@@ -18,9 +18,9 @@ class _StudyMindUIState extends State<PageOne> {
   // studyRecordsをクラス全体で使えるようにメンバ変数として定義
   List<Map<String, dynamic>> studyRecords = [];
 
-  String studyRank = 'A';
-  String lifeRank = 'B';
-  String gradeRank = 'A';
+  String studyRank = '未設定';
+  String lifeRank = '未設定';
+  String gradeRank = '未設定';
   String comment = "評価のポイント\n" +
       "1. 成績（B+）: 成績自体は十分に優秀で、目標に向けて着実に進んでいる状態です。\n" +
       "2. 学習（B+）: 学習習慣も良好で、しっかりとした時間と集中力が確保できている様子です。\n" +
@@ -38,15 +38,16 @@ class _StudyMindUIState extends State<PageOne> {
   @override
   void initState() {
     super.initState();
-    _loadTarget();
+    _loadUserData();
     _getStudyRecords();
   }
 
-  // Firestoreから現在のユーザーのtargetを取得するメソッド
-  Future<void> _loadTarget() async {
+  // Firestoreから現在のユーザーのデータ (target, studyRank, lifeRank, gradeRank) を取得するメソッド
+  Future<void> _loadUserData() async {
     try {
       User? user = FirebaseAuth.instance.currentUser;
       if (user != null) {
+        // Firestoreからユーザードキュメントを取得
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
@@ -54,22 +55,32 @@ class _StudyMindUIState extends State<PageOne> {
 
         if (userDoc.exists && userDoc.data() != null) {
           var userData = userDoc.data() as Map<String, dynamic>;
-          if (userData.containsKey('target')) {
-            setState(() {
-              target = userData['target']; // 取得したtargetをセット
-            });
-            print('取得した目標: $target'); // 取得した目標をログに出力
-          } else {
-            print('targetフィールドが存在しません');
-          }
+
+          // 各フィールドの存在チェックとセット
+          setState(() {
+            target =
+                userData.containsKey('target') ? userData['target'] : '目標未設定';
+            studyRank = userData.containsKey('studyRank')
+                ? userData['studyRank']
+                : '未設定';
+            lifeRank =
+                userData.containsKey('lifeRank') ? userData['lifeRank'] : '未設定';
+            gradeRank = userData.containsKey('gradeRank')
+                ? userData['gradeRank']
+                : '未設定';
+          });
+
+          // ログで確認
+          print(
+              '取得したデータ: 目標: $target, 学習評価: $studyRank, 生活評価: $lifeRank, 成績評価: $gradeRank');
         } else {
-          print('ユーザー情報が存在しません');
+          print('ユーザードキュメントが存在しません');
         }
       } else {
         print('ユーザーがログインしていません');
       }
     } catch (e) {
-      print('エラーが発生しました: $e');
+      print('エラーが発生: $e');
     }
   }
 
@@ -168,6 +179,8 @@ class _StudyMindUIState extends State<PageOne> {
 
   Future<void> sendSimpleTestToGPT() async {
     final url = 'https://api.openai.com/v1/chat/completions'; // エンドポイント
+
+    String studyrank = "未設定";
 
     // OpenAI APIキーを挿入してください
     final apiKey = dotenv.env['OPENAI_API_KEY'];

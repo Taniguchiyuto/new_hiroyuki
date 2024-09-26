@@ -48,23 +48,30 @@ class _UserInfoInputPageState extends State<UserInfoInputPage> {
         _targetController.text.isNotEmpty &&
         _ageController.text.isNotEmpty &&
         _occupationCotroller.text.isNotEmpty) {
+      // Firestoreにユーザー情報を保存
       await _firestore.collection('users').doc(widget.user!.uid).set({
-        'username': _usernameController.text,
-        'target': _targetController.text, // targetも保存
-        'email': widget.user!.email,
-        'occupation': _occupationCotroller.text,
-        'age': int.parse(_ageController.text),
+        'username': _usernameController.text, // 入力されたユーザー名
+        'target': _targetController.text, // 入力された目標
+        'email': widget.user!.email, // ユーザーのメールアドレス
+        'occupation': _occupationCotroller.text, // 入力された職業
+        'age': int.parse(_ageController.text), // 入力された年齢
+        'studyRank': "A", // 固定値として 0 を保存
+        'lifeRank': "A", // 固定値として 0 を保存
+        'gradeRank': "A", // 固定値として 0 を保存
+        'studySentence': "A",
+        'lifeSentence': "A",
+        'gradeSentence': "A"
       });
 
-      // 保存後にホームページに遷移
+      // 保存後、ホームページに遷移
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => HomePage()),
+        MaterialPageRoute(builder: (context) => HomePage()), // HomePageへ遷移
       );
     } else {
-      // 空のフィールドがある場合は警告を表示
+      // フィールドが空の場合はエラーメッセージを表示
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('ユーザー名と目標を入力してください')),
+        SnackBar(content: Text('全てのフィールドを入力してください')),
       );
     }
   }
