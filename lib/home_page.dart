@@ -71,8 +71,8 @@ class _HomePageState extends State<HomePage> {
               label: '記録する',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.chat),
-              label: 'チャット',
+              icon: Icon(Icons.school),
+              label: '自習室',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.show_chart),

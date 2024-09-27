@@ -68,6 +68,9 @@ class _StudyMindUIState extends State<PageOne> {
             gradeRank = userData.containsKey('gradeRank')
                 ? userData['gradeRank']
                 : '未設定';
+            comment = userData.containsKey('studySentence')
+                ? userData['studySentence']
+                : '評価のポイント未設定';
           });
 
           // ログで確認
@@ -209,33 +212,7 @@ class _StudyMindUIState extends State<PageOne> {
         'D: やや不足している。学習量や内容がやや足りず、進展が遅れている。\n'
         'E: 大幅に不足している。学習量が不足しており、目標達成が難しい。\n'
         'F: 全く不十分。学習がほとんどできておらず、大きな改善が必要。\n\n'
-        '--- 学習記録 ---\n$studyRecordsText\n'
-        '以下は例です。この例を参考に$studyRecordsTextの評価をして下さい\n'
-        '例1:京大経済学部文系志望の浪人生が一対一対応の数学、古文、長文ルールズをそれぞれ5時間勉強しました。これを評価してみて下さい。\n'
-        '---解答---\n'
-        'ステップ1: 目標達成に必要な点数と偏差値の目安\n'
-        '京都大学の経済学部文系に合格するためには、共通テストで概ね85%以上の得点が必要です。特に二次試験では、英語、数学、国語が重要で、偏差値でいうと65～70程度が目安です。また、京大は論述力も問われるため、深い理解と応用力が必要です。\n'
-        'ステップ2: 必要とされる基準 浪人生の場合、高校生と違って基礎の定着はもちろん、応用力や過去問演習、論述対策も必要です。また、全体的に一週間あたりの学習時間は少なくとも40～50時間以上が推奨されます。特に京大は数学や論述の難易度が高いので、重点的な対策が求められます。\n'
-        'ステップ3: 科目バランスと現在の学習内容との乖離\n'
-        '数学:5時間\n'
-        '一対一対応の数学に5時間は、浪人生としては少し不足しています。京大経済学部は文系ですが、数学のレベルが非常に高いため、数学に少なくとも10～15時間は必要です。特に問題演習や応用問題の解法をしっかりと取り組む必要があります。\n'
-        '古文:5時間\n'
-        '古文に5時間は適切な時間配分です。古典文法や読解力は既に身についていることを前提に、過去問や論述対策にも取り組んでいると良いでしょう。\n'
-        '英語（長文ルールズ:5時間\n'
-        '英語長文に5時間というのも少し少ない印象です。京大の英語は難易度が高く、長文読解だけでなく、文法や英作文、特に論述対策が必要です。10時間程度かけても良いでしょう。\n';
-    '総合評価:D \n'
-        '現在の勉強は科目バランス自体は悪くありませんが、浪人生としては学習時間が大きく不足しています。全体で15時間の学習時間は、特に京大のレベルを考えるとやや少ないです。また、数学と英語は京大の二次試験において非常に重要であり、各科目の勉強時間を増やす必要があります。\n'
-        '改善点:数学の勉強時間を増やす:10～15時間を目安に応用問題や過去問演習を積極的に取り組んでください。\n'
-        '英語の強化：長文読解だけでなく、英作文や論述対策に重点を置いて、勉強時間を倍にすることを目指しましょう。\n'
-        '全体の学習時間を増やす:一週間で40～50時間の学習を目指し、バランスよく他の科目も取り入れましょう。'
-        '浪人生としては、まだ全体的に時間が足りないため、学習時間を増やしつつ効率よく進めることが合格への鍵です。頑張ってください！\n'
-        '例2:横浜国立大学の経済学部文系の大学入学試験の合格を目指している高校一年生が1対1対応の演習/数学Bを1222分行いました\n'
-        '---解答---\n'
-        'ステップ1: 目標達成に必要な点数と偏差値の目安  横浜国立大学経済学部文系に合格するためには、共通テストでおおむね75～80%の得点が必要です。特に二次試験では、英語と数学が重要で、偏差値でいうと60～65程度が目安です。特に経済学部なので、数学は他の文系学部よりも重視されます。\n'
-        'ステップ2: 高校1年生時点で必要とされる基準 現時点では基礎の定着が重要です。特に数学、英語、国語は早めにしっかりと基礎を固める必要があります。週の学習時間としては、少なくとも15〜20時間が理想的です。これによって、各科目のバランス良い学習が可能となり、早い段階で基礎力を定着させることができるでしょう。\n'
-        'ステップ3: 科目バランスと現在の学習内容との乖離 数学 勉強時間: 1222分（約20時間） 教材: 1対1対応の演習/数学B 価: 非常に優れています。数学に20時間を割いているのは、高校1年生としては非常に良いペースです。この時点でこれだけの時間をかけて数学の基礎固めをしていることは、今後の学習に大いに役立つでしょう。ただし、他の科目とのバランスが課題となります。他の科目勉強なし\n'
-        '総合評価: D 理由: 数学に対する時間の使い方は素晴らしいですが、他の科目、特に英語や国語が全く学習されていない点が問題';
-
+        '--- 学習記録 ---$studyRecordsText';
     try {
       final response = await http.post(
         Uri.parse(url),
@@ -257,6 +234,26 @@ class _StudyMindUIState extends State<PageOne> {
         }),
       );
 
+      Future<void> _saveGPTResponseToFirestore(String gptResponse) async {
+        User? user = FirebaseAuth.instance.currentUser; // 現在のユーザーを取得
+        if (user != null) {
+          try {
+            // FirestoreのユーザードキュメントにgptResponseをstudySentenceフィールドとして保存
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .update({
+              'studySentence': gptResponse, // GPTの応答をstudySentenceフィールドに保存
+            });
+            print('GPTの応答がFirestoreのstudySentenceフィールドに保存されました');
+          } catch (e) {
+            print('Firestoreへの保存中にエラーが発生しました: $e');
+          }
+        } else {
+          print('ユーザーがログインしていません');
+        }
+      }
+
       // 返答をUTF-8でデコードして取得
       if (response.statusCode == 200) {
         var decodedResponse = jsonDecode(utf8.decode(response.bodyBytes));
@@ -264,13 +261,12 @@ class _StudyMindUIState extends State<PageOne> {
             decodedResponse['choices'][0]['message']['content'];
 
         // 手動で作成したファイルのパスを指定
-        final file =
-            File('/Users/makikotaniguchi/gpt_response.txt'); // 画像で確認されたパス
+        // final file =
+        //     File('/Users/makikotaniguchi/gpt_response.txt'); // 画像で確認されたパス
         // 手動で作成したファイルのフルパスを指定
 
         // ファイルにGPTの返答を書き込む
-        await file.writeAsString(gptResponse);
-
+        await _saveGPTResponseToFirestore(gptResponse);
         print('GPTの返答がファイルに保存されました: /path/to/your/file/gpt_response.txt');
       } else {
         print('エラーが発生しました: ${response.statusCode}, ${response.body}');

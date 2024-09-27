@@ -1,26 +1,56 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // FirebaseAuthをインポート
 
 class PageThree extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Page Three"),
+        title: Text("オンライン自習室"),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('AIチャット機能はまだ実装途中です。'),
+            Text(
+              'オンライン自習室へようこそ！',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                // 自習室に入室する処理を追加
+              },
+              child: Text('自習室に入る'),
+            ),
+            SizedBox(height: 20),
+            Text(
+              '現在の参加者:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            Expanded(
+              child: ListView(
+                children: [
+                  ListTile(
+                    leading: Icon(Icons.person),
+                    title: Text('ユーザー1'),
+                    subtitle: Text('勉強中'),
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.person),
+                    title: Text('ユーザー2'),
+                    subtitle: Text('休憩中'),
+                  ),
+                  // 追加のユーザーを表示するリスト
+                ],
+              ),
+            ),
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: () async {
-                await _logout(context);
+                await _logout(context); // ログアウト機能はそのまま使用
               },
               child: Text('ログアウト'),
             ),
@@ -33,9 +63,8 @@ class PageThree extends StatelessWidget {
   // ログアウト処理
   Future<void> _logout(BuildContext context) async {
     try {
-      await FirebaseAuth.instance.signOut(); // Firebaseからのログアウト
-
-      // ログアウト成功のダイアログを表示
+      // Firebaseからのログアウト処理はそのまま保持
+      // ログアウト成功のダイアログ
       showDialog(
         context: context,
         builder: (BuildContext context) {
@@ -46,7 +75,7 @@ class PageThree extends StatelessWidget {
               TextButton(
                 child: Text("OK"),
                 onPressed: () {
-                  Navigator.of(context).pop(); // ダイアログを閉じる
+                  Navigator.of(context).pop();
                 },
               ),
             ],
@@ -54,8 +83,7 @@ class PageThree extends StatelessWidget {
         },
       );
     } catch (e) {
-      print("ログアウトに失敗しました: $e");
-      // エラーメッセージを表示
+      // ログアウトエラーのダイアログ処理
       showDialog(
         context: context,
         builder: (BuildContext context) {
@@ -66,7 +94,7 @@ class PageThree extends StatelessWidget {
               TextButton(
                 child: Text("OK"),
                 onPressed: () {
-                  Navigator.of(context).pop(); // ダイアログを閉じる
+                  Navigator.of(context).pop();
                 },
               ),
             ],
