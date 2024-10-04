@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart'; // CupertinoPickerを使用
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -16,10 +17,20 @@ class UserInfoInputPage extends StatefulWidget {
 class _UserInfoInputPageState extends State<UserInfoInputPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _targetController =
-      TextEditingController(); // target入力用コントローラ
-  final TextEditingController _ageController = TextEditingController();
+  final TextEditingController _targetController = TextEditingController();
   final TextEditingController _occupationCotroller = TextEditingController();
+  int _selectedAge = 18; // 初期値を18歳に設定
+  int _selectedOccupationIndex = 0; // 職業の初期選択肢
+  final List<String> _occupations = [
+    '高校1年生',
+    '高校2年生',
+    '高校3年生',
+    '浪人生(1浪)',
+    '浪人生(2浪)',
+    '浪人生(3浪)',
+    '浪人生(4浪)'
+  ]; //職業の選択肢リスト
+
   @override
   void initState() {
     super.initState();
@@ -34,9 +45,11 @@ class _UserInfoInputPageState extends State<UserInfoInputPage> {
       if (userInfo.exists) {
         setState(() {
           _usernameController.text = userInfo['username'] ?? '';
-          _targetController.text = userInfo['target'] ?? ''; // targetをセット
-          _ageController.text = userInfo['age']?.toString() ?? '';
-          _occupationCotroller.text = userInfo['occupation'] ?? '';
+          _targetController.text = userInfo['target'] ?? '';
+          _selectedAge = userInfo['age'] ?? 18; // デフォルト年齢を18に設定
+          // occupationのインデックスを設定
+          String occupation = userInfo['occupation'] ?? _occupations[0];
+          _selectedOccupationIndex = _occupations.indexOf(occupation);
         });
       }
     }
@@ -46,18 +59,17 @@ class _UserInfoInputPageState extends State<UserInfoInputPage> {
     if (widget.user != null &&
         _usernameController.text.isNotEmpty &&
         _targetController.text.isNotEmpty &&
-        _ageController.text.isNotEmpty &&
         _occupationCotroller.text.isNotEmpty) {
       // Firestoreにユーザー情報を保存
       await _firestore.collection('users').doc(widget.user!.uid).set({
-        'username': _usernameController.text, // 入力されたユーザー名
-        'target': _targetController.text, // 入力された目標
-        'email': widget.user!.email, // ユーザーのメールアドレス
-        'occupation': _occupationCotroller.text, // 入力された職業
-        'age': int.parse(_ageController.text), // 入力された年齢
-        'studyRank': "A", // 固定値として 0 を保存
-        'lifeRank': "A", // 固定値として 0 を保存
-        'gradeRank': "A", // 固定値として 0 を保存
+        'username': _usernameController.text,
+        'target': _targetController.text,
+        'email': widget.user!.email,
+        'occupation': _occupations[_selectedOccupationIndex], // 選択された職業を保存
+        'age': _selectedAge, // 選択された年齢を保存
+        'studyRank': "A",
+        'lifeRank': "A",
+        'gradeRank': "A",
         'studySentence': "A",
         'lifeSentence': "A",
         'gradeSentence': "A"
@@ -66,7 +78,7 @@ class _UserInfoInputPageState extends State<UserInfoInputPage> {
       // 保存後、ホームページに遷移
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => HomePage()), // HomePageへ遷移
+        MaterialPageRoute(builder: (context) => HomePage()),
       );
     } else {
       // フィールドが空の場合はエラーメッセージを表示
@@ -74,6 +86,54 @@ class _UserInfoInputPageState extends State<UserInfoInputPage> {
         SnackBar(content: Text('全てのフィールドを入力してください')),
       );
     }
+  }
+
+  void _showAgePicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          height: 250,
+          child: CupertinoPicker(
+            itemExtent: 32.0,
+            onSelectedItemChanged: (int value) {
+              setState(() {
+                _selectedAge = value + 1; // 年齢は1歳からスタート
+              });
+            },
+            children: List<Widget>.generate(100, (int index) {
+              return Center(
+                child: Text('${index + 1} 歳'), // 1歳から100歳までの年齢を表示
+              );
+            }),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showOccupationPicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          height: 250,
+          child: CupertinoPicker(
+            itemExtent: 32.0,
+            onSelectedItemChanged: (int value) {
+              setState(() {
+                _selectedOccupationIndex = value; // 選択された職業をインデックスに保存
+              });
+            },
+            children: _occupations.map((String occupation) {
+              return Center(
+                child: Text(occupation), // 職業リストの表示
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -84,10 +144,8 @@ class _UserInfoInputPageState extends State<UserInfoInputPage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // 画像を最初に表示
             Image.asset('assets/images/hiroyuki.png'),
             SizedBox(height: 20),
-            // 画像の下にテキストを表示
             if (widget.message.isNotEmpty) ...[
               Text(
                 widget.message,
@@ -101,19 +159,33 @@ class _UserInfoInputPageState extends State<UserInfoInputPage> {
             ),
             SizedBox(height: 20),
             TextField(
-              controller: _targetController, // target用のテキストフィールド
+              controller: _targetController,
               decoration: InputDecoration(labelText: '目標'),
             ),
             SizedBox(height: 20),
-            TextField(
-              controller: _ageController,
-              decoration: InputDecoration(labelText: '年齢'),
-              keyboardType: TextInputType.number,
+            GestureDetector(
+              onTap: _showAgePicker, // タップ時に年齢選択ピッカーを表示
+              child: AbsorbPointer(
+                // TextFieldがタップされても反応しないようにする
+                child: TextField(
+                  controller: TextEditingController(
+                    text: '$_selectedAge 歳', // 選択された年齢を表示
+                  ),
+                  decoration: InputDecoration(labelText: '年齢'),
+                ),
+              ),
             ),
             SizedBox(height: 20),
-            TextField(
-              controller: _occupationCotroller,
-              decoration: InputDecoration(labelText: '職業'),
+            GestureDetector(
+              onTap: _showOccupationPicker, // タップ時に職業選択ピッカーを表示
+              child: AbsorbPointer(
+                child: TextField(
+                  controller: TextEditingController(
+                    text: _occupations[_selectedOccupationIndex], // 選択された職業を表示
+                  ),
+                  decoration: InputDecoration(labelText: '職業'),
+                ),
+              ),
             ),
             SizedBox(height: 20),
             ElevatedButton(onPressed: _saveUserInfo, child: Text('Save')),
@@ -126,8 +198,7 @@ class _UserInfoInputPageState extends State<UserInfoInputPage> {
   @override
   void dispose() {
     _usernameController.dispose();
-    _targetController.dispose(); // targetコントローラの破棄
-    _ageController.dispose();
+    _targetController.dispose();
     _occupationCotroller.dispose();
     super.dispose();
   }

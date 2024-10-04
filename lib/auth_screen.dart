@@ -64,7 +64,7 @@ class _AuthScreenState extends State<AuthScreen> {
             MaterialPageRoute(
               builder: (context) => UserInfoInputPage(
                 user: userCredential.user,
-                message: "ユーザー名、目標、年齢、職業を入力してください",
+                message: "ユーザー名、志望大学、年齢、職業を入力してください",
               ),
             ),
           );

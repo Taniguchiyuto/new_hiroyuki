@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'main.dart'; // UserInfoInputPageをインポート
+import 'package:firebase_auth/firebase_auth.dart';
 
 class PageThree extends StatelessWidget {
   @override
@@ -50,7 +52,7 @@ class PageThree extends StatelessWidget {
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: () async {
-                await _logout(context); // ログアウト機能はそのまま使用
+                await _logout(context); // ログアウト処理を呼び出し
               },
               child: Text('ログアウト'),
             ),
@@ -63,8 +65,10 @@ class PageThree extends StatelessWidget {
   // ログアウト処理
   Future<void> _logout(BuildContext context) async {
     try {
-      // Firebaseからのログアウト処理はそのまま保持
-      // ログアウト成功のダイアログ
+      // Firebaseからのログアウト処理を実行
+      await FirebaseAuth.instance.signOut(); // Firebaseのログアウト処理
+
+      // ログアウト成功のダイアログ表示
       showDialog(
         context: context,
         builder: (BuildContext context) {
@@ -75,7 +79,15 @@ class PageThree extends StatelessWidget {
               TextButton(
                 child: Text("OK"),
                 onPressed: () {
-                  Navigator.of(context).pop();
+                  Navigator.of(context).pop(); // ダイアログを閉じる
+
+                  // ログアウト成功後、UserInfoInputPageに遷移
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => InitialScreen(),
+                    ),
+                  );
                 },
               ),
             ],
@@ -83,7 +95,7 @@ class PageThree extends StatelessWidget {
         },
       );
     } catch (e) {
-      // ログアウトエラーのダイアログ処理
+      // ログアウトエラーのダイアログ表示
       showDialog(
         context: context,
         builder: (BuildContext context) {
@@ -94,7 +106,7 @@ class PageThree extends StatelessWidget {
               TextButton(
                 child: Text("OK"),
                 onPressed: () {
-                  Navigator.of(context).pop();
+                  Navigator.of(context).pop(); // ダイアログを閉じる
                 },
               ),
             ],
